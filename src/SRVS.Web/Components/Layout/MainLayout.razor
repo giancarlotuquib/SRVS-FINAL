@@ -1,0 +1,124 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using SRVS.Application.Services
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@inject ILogger<MainLayout> Logger
+
+<div class="page srvs-shell">
+    <input id="srvs-sidebar-toggle" class="srvs-sidebar-checkbox" type="checkbox" aria-label="Toggle side navigation" />
+
+    <AuthorizeView>
+        <Authorized>
+            @if (showSidebar)
+            {
+                <aside class="sidebar">
+                    <NavMenu />
+                </aside>
+            }
+        </Authorized>
+    </AuthorizeView>
+
+    <main class="srvs-main">
+        <header class="top-row">
+            <div class="top-row__left">
+                <label class="sidebar-toggle-button" for="srvs-sidebar-toggle" title="Toggle navigation" aria-label="Toggle navigation">
+                    <svg class="sidebar-toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </label>
+                <div>
+                    <div class="top-row__eyebrow">Syllabus Repository and Versioning System</div>
+                    <div class="top-row__title">Computer Engineering Portal</div>
+                </div>
+            </div>
+            <div class="top-row__right">
+                <span class="top-row__status">Syllabus Repository and Versioning System</span>
+            </div>
+        </header>
+
+        <article class="content">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>
+
+@code {
+    private bool showSidebar;
+    private UserRoleType? currentRole;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        await RefreshSidebarStateAsync();
+    }
+
+    private async void OnAuthenticationStateChanged(Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> _)
+    {
+        await RefreshSidebarStateAsync();
+    }
+
+    private async Task RefreshSidebarStateAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        currentRole = user?.Role;
+
+        UpdateSidebarVisibility();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        UpdateSidebarVisibility();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateSidebarVisibility()
+    {
+        if (currentRole is null)
+        {
+            showSidebar = false;
+            return;
+        }
+
+        // Workspace prefix:
+        //   /admin/dashboard      -> /admin
+        //   /viewer/dashboard     -> /viewer
+        // so we can show the sidebar on ALL pages under that workspace (/admin/*).
+        var currentPath = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).TrimStart('/');
+
+        var dashboardRoute = DashboardRouteResolver.GetRoute(currentRole.Value);
+
+        var workspacePrefix = dashboardRoute.EndsWith("/dashboard", StringComparison.OrdinalIgnoreCase)
+            ? dashboardRoute[..^"/dashboard".Length]
+            : dashboardRoute;
+
+        showSidebar =
+            string.Equals(currentPath, workspacePrefix, StringComparison.OrdinalIgnoreCase)
+            || currentPath.StartsWith(workspacePrefix + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

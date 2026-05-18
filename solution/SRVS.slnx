@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="../src/SRVS.Application/SRVS.Application.csproj" />
+    <Project Path="../src/SRVS.Domain/SRVS.Domain.csproj" />
+    <Project Path="../src/SRVS.Infrastructure/SRVS.Infrastructure.csproj" />
+    <Project Path="../src/SRVS.Web/SRVS.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="../tests/SRVS.Tests/SRVS.Tests.csproj" />
+  </Folder>
+  <Project Path="../SRVS.Runner.csproj" />
+</Solution>

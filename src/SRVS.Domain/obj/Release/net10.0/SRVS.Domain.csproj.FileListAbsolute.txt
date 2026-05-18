@@ -1,0 +1,11 @@
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\bin\Release\net10.0\SRVS.Domain.deps.json
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\bin\Release\net10.0\SRVS.Domain.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\bin\Release\net10.0\SRVS.Domain.pdb
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.AssemblyInfoInputs.cache
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.AssemblyInfo.cs
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.csproj.CoreCompileInputs.cache
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\refint\SRVS.Domain.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\SRVS.Domain.pdb
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Release\net10.0\ref\SRVS.Domain.dll

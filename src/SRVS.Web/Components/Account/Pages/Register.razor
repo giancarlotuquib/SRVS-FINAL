@@ -1,0 +1,241 @@
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using SRVS.Application.Services
+@using SRVS.Domain.Entities
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IUserStore<ApplicationUser> UserStore
+@inject ApplicationDbContext DbContext
+@inject ILogger<Register> Logger
+
+<PageTitle>Register</PageTitle>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-9">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-uppercase text-secondary small mb-2">Public onboarding</p>
+                    <h1 class="h3 mb-2">Request an SRVS account</h1>
+                    <p class="text-secondary mb-4">Accounts start as pending and become usable only after admin approval.</p>
+
+                    @if (!string.IsNullOrWhiteSpace(successMessage))
+                    {
+                        <div class="alert alert-success">@successMessage</div>
+                    }
+
+                    <StatusMessage Message="@Message" />
+
+                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" role="alert" />
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="Input.FullName">Full Name</label>
+                                <InputText @bind-Value="Input.FullName" id="Input.FullName" class="form-control" placeholder="Jane Dela Cruz" />
+                                <ValidationMessage For="() => Input.FullName" class="text-danger" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="Input.Email">Email Address</label>
+                                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" placeholder="name@example.com" />
+                                <ValidationMessage For="() => Input.Email" class="text-danger" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="Input.InstitutionalId">Institutional ID</label>
+                                <InputText @bind-Value="Input.InstitutionalId" id="Input.InstitutionalId" class="form-control" placeholder="12345" />
+                                <ValidationMessage For="() => Input.InstitutionalId" class="text-danger" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="Input.Role">Role</label>
+                                <InputSelect TValue="UserRoleType" @bind-Value="Input.Role" id="Input.Role" class="form-select">
+                                    <option value="@UserRoleType.DepartmentHead">Department Head</option>
+                                    <option value="@UserRoleType.Educator">Educator</option>
+                                    <option value="@UserRoleType.Viewer">Viewer</option>
+                                </InputSelect>
+                                <ValidationMessage For="() => Input.Role" class="text-danger" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="Input.DepartmentId">Department</label>
+                                <InputSelect TValue="Guid?" @bind-Value="Input.DepartmentId" id="Input.DepartmentId" class="form-select">
+                                    <option value="">Select a department</option>
+                                    @foreach (var department in Departments)
+                                    {
+                                        <option value="@department.Id">@department.Code - @department.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => Input.DepartmentId" class="text-danger" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="Input.Password">Password</label>
+                                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" placeholder="Create a password" />
+                                <ValidationMessage For="() => Input.Password" class="text-danger" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="Input.ConfirmPassword">Confirm Password</label>
+                                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Repeat password" />
+                                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary px-4" disabled="@isSubmitting">Submit Request</button>
+                            <a class="btn btn-outline-secondary" href="Account/Login">Back to login</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+    private string? successMessage;
+    private bool isSubmitting;
+    private List<Department> Departments { get; set; } = [];
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        Departments = await DbContext.Departments
+            .Where(department => department.IsActive)
+            .OrderBy(department => department.Name)
+            .ToListAsync();
+    }
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        isSubmitting = true;
+        identityErrors = null;
+        successMessage = null;
+
+        if (!editContext.Validate())
+        {
+            isSubmitting = false;
+            return;
+        }
+
+        var user = CreateUser();
+        user.FullName = Input.FullName.Trim();
+        user.InstitutionalId = Input.InstitutionalId.Trim();
+        user.Role = Input.Role;
+        user.DepartmentId = Input.DepartmentId;
+        user.AccountStatus = UserAccountStatus.PendingApproval;
+        user.EmailConfirmed = true;
+
+        var email = Input.Email.Trim();
+        await UserStore.SetUserNameAsync(user, email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, email, CancellationToken.None);
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            isSubmitting = false;
+            return;
+        }
+
+        DbContext.RegistrationRequests.Add(new RegistrationRequest
+        {
+            FullName = user.FullName,
+            Email = email,
+            InstitutionalId = user.InstitutionalId,
+            RequestedRole = user.Role,
+            DepartmentId = user.DepartmentId,
+            Status = RegistrationStatus.Pending
+        });
+
+        await DbContext.SaveChangesAsync();
+
+        Logger.LogInformation("User created a pending SRVS account request.");
+        successMessage = "Your request was submitted. A System Administrator must approve the account before login is enabled.";
+        Input = new InputModel();
+        isSubmitting = false;
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. Ensure that '{nameof(ApplicationUser)}' is not abstract and has a parameterless constructor.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private sealed class InputModel : IValidatableObject
+    {
+        [Required]
+        [Display(Name = "Full Name")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [Display(Name = "Institutional ID")]
+        public string InstitutionalId { get; set; } = string.Empty;
+
+        [Required]
+        [Display(Name = "Role")]
+        public UserRoleType Role { get; set; } = UserRoleType.Viewer;
+
+        [Required]
+        [Display(Name = "Department")]
+        public Guid? DepartmentId { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = string.Empty;
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (!InstitutionalIdRules.IsValid(Role, InstitutionalId))
+            {
+                yield return new ValidationResult(
+                    Role is UserRoleType.Viewer
+                        ? "Viewer institutional IDs must contain exactly 10 digits."
+                        : "Department Head and Educator institutional IDs must contain exactly 5 digits.",
+                    [nameof(InstitutionalId)]);
+            }
+
+            if (DepartmentId is null)
+            {
+                yield return new ValidationResult("Department is required.", [nameof(DepartmentId)]);
+            }
+        }
+    }
+}

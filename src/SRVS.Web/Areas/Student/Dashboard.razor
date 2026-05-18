@@ -1,0 +1,9 @@
+@page "/student/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using SRVS.Web.Components
+@using SRVS.Domain.Enums
+@using Microsoft.AspNetCore.Components.Web
+@attribute [Authorize]
+
+<PageTitle>Student Dashboard</PageTitle>
+<RoleDashboard Role="UserRoleType.Viewer" />

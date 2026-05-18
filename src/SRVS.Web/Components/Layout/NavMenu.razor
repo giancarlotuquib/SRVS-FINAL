@@ -1,0 +1,171 @@
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using SRVS.Application.Services
+@using SRVS.Web.Data
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+
+<div class="nav-shell">
+    <a class="navbar-brand" href="/">
+        <SchoolSeal Class="usjr-seal--nav" />
+        <span>
+            <span class="navbar-title">SRVS</span>
+            <span class="navbar-subtitle">USJR Computer Engineering</span>
+        </span>
+    </a>
+
+    <AuthorizeView>
+        <Authorized>
+            @if (currentUser is not null)
+            {
+                <div class="nav-user">
+                    <div class="nav-user__avatar">@UserInitials</div>
+                    <div class="nav-user__meta">
+                        <div class="nav-user__name">@DisplayName</div>
+                        <div class="nav-user__role">@RoleLabel</div>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section__label">Workspace</div>
+                    <nav class="nav flex-column">
+                        @foreach (var link in RoleLinks)
+                        {
+                            <div class="nav-item">
+                                <NavLink class="nav-link" href="@link.Href" Match="@link.Match">
+                                    <span class="nav-link__icon @link.Icon" aria-hidden="true"></span>
+                                    <span>@link.Label</span>
+                                </NavLink>
+                            </div>
+                        }
+                    </nav>
+                </div>
+            }
+
+            <div class="nav-section nav-section--account">
+                <div class="nav-section__label">Account</div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="Account/Manage">
+                        <span class="nav-link__icon nav-link__icon--account" aria-hidden="true"></span>
+                        <span>Profile settings</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                        <button type="submit" class="nav-link nav-link--button">
+                            <span class="nav-link__icon nav-link__icon--logout" aria-hidden="true"></span>
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="nav-section">
+                <div class="nav-section__label">Access</div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="Account/Login" Match="NavLinkMatch.All">
+                        <span class="nav-link__icon nav-link__icon--login" aria-hidden="true"></span>
+                        <span>Login</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="Account/Register">
+                        <span class="nav-link__icon nav-link__icon--register" aria-hidden="true"></span>
+                        <span>Register</span>
+                    </NavLink>
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private string? currentUrl;
+    private ApplicationUser? currentUser;
+
+    private string DisplayName => currentUser?.FullName ?? currentUser?.Email ?? "SRVS User";
+
+    private string UserInitials
+    {
+        get
+        {
+            var words = DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return words.Length switch
+            {
+                0 => "SR",
+                1 => words[0][..Math.Min(2, words[0].Length)].ToUpperInvariant(),
+                _ => $"{words[0][0]}{words[^1][0]}".ToUpperInvariant()
+            };
+        }
+    }
+
+    private string RoleLabel => currentUser?.Role switch
+    {
+        UserRoleType.Admin => "System Administrator",
+        UserRoleType.DepartmentHead => "Department Head",
+        UserRoleType.Educator => "Faculty",
+        UserRoleType.Viewer => "Student Viewer",
+        _ => "Approved User"
+    };
+
+    private IReadOnlyList<NavItem> RoleLinks => currentUser?.Role switch
+    {
+        UserRoleType.Admin =>
+        [
+            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Admin), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Registration Approvals", "/admin/registrations", "nav-link__icon--users"),
+            new("Audit Logs", "/admin/audit-logs", "nav-link__icon--audit")
+        ],
+        UserRoleType.DepartmentHead =>
+        [
+            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.DepartmentHead), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Review Submissions", "/syllabi/search", "nav-link__icon--review"),
+            new("Syllabus Repository", "/syllabi/search", "nav-link__icon--repository")
+        ],
+        UserRoleType.Educator =>
+        [
+            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Educator), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Upload Syllabus", "/educator/upload", "nav-link__icon--upload"),
+            new("My Syllabi", "/syllabi/search", "nav-link__icon--repository")
+        ],
+        UserRoleType.Viewer =>
+        [
+            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Viewer), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Browse Syllabi", "/syllabi/search", "nav-link__icon--repository")
+        ],
+        _ =>
+        [
+            new("Dashboard", "/dashboard", "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Syllabus Repository", "/syllabi/search", "nav-link__icon--repository")
+        ]
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = await UserManager.GetUserAsync(authState.User);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private sealed record NavItem(string Label, string Href, string Icon, NavLinkMatch Match = NavLinkMatch.Prefix);
+}

@@ -1,0 +1,220 @@
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.EntityFrameworkCore
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@inject IServiceProvider ServiceProvider
+
+<section class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <p class="text-uppercase text-secondary small mb-1">@RoleLabel dashboard</p>
+            <h1 class="h3 mb-0">@Title</h1>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            @foreach (var link in QuickLinks)
+            {
+                <a class="btn btn-outline-primary btn-sm" href="@link.Href">@link.Label</a>
+            }
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        @foreach (var card in Stats)
+        {
+            <div class="col-md-3 col-sm-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-secondary small text-uppercase">@card.Label</div>
+                        <div class="display-6 fw-bold">@card.Value</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">@PrimaryPanelTitle</h2>
+                    <div class="list-group list-group-flush mt-3">
+                        @foreach (var item in PrimaryItems)
+                        {
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@item.Title</div>
+                                    <div class="text-secondary small">@item.Description</div>
+                                </div>
+                                <span class="badge text-bg-light">@item.Tag</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Recent activity</h2>
+                    <div class="list-group list-group-flush mt-3">
+                        @foreach (var item in RecentItems)
+                        {
+                            <div class="list-group-item px-0">
+                                <div class="fw-semibold">@item.Title</div>
+                                <div class="text-secondary small">@item.Description</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public UserRoleType Role { get; set; }
+
+    private int userCount;
+    private int departmentCount;
+    private int registrationCount;
+    private int syllabusCount;
+    private int approvedCount;
+
+    private IReadOnlyList<(string Label, string Value)> Stats { get; set; } = [];
+    private IReadOnlyList<(string Title, string Description, string Tag)> PrimaryItems { get; set; } = [];
+    private IReadOnlyList<(string Title, string Description)> RecentItems { get; set; } = [];
+    private IReadOnlyList<(string Label, string Href)> QuickLinks { get; set; } = [];
+
+    private string RoleLabel => Role switch
+    {
+        UserRoleType.Admin => "System Administrator",
+        UserRoleType.DepartmentHead => "Department Head",
+        UserRoleType.Educator => "Faculty",
+        UserRoleType.Viewer => "Student",
+        _ => "SRVS"
+    };
+
+    private string Title => Role switch
+    {
+        UserRoleType.Admin => "Manage Computer Engineering program, user approvals, and audit trails",
+        UserRoleType.DepartmentHead => "Computer Engineering syllabi review and oversight",
+        UserRoleType.Educator => "Computer Engineering syllabi, drafts, and revisions",
+        UserRoleType.Viewer => "Computer Engineering Syllabus Repository",
+        _ => "Dashboard"
+    };
+
+    private string PrimaryPanelTitle => Role switch
+    {
+        UserRoleType.Admin => "Pending CE Registrations",
+        UserRoleType.DepartmentHead => "Pending CE Syllabus Reviews",
+        UserRoleType.Educator => "CE Syllabi Tracker",
+        UserRoleType.Viewer => "CE Student Access",
+        _ => "Overview"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var scope = ServiceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        userCount = await dbContext.Users.CountAsync();
+        departmentCount = await dbContext.Departments.CountAsync();
+        registrationCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending);
+        syllabusCount = await dbContext.SyllabusDocuments.CountAsync();
+        approvedCount = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved);
+
+        Stats = Role switch
+        {
+            UserRoleType.Admin => new[]
+            {
+                ("CE Users", userCount.ToString()),
+                ("Pending Requests", registrationCount.ToString())
+            },
+            UserRoleType.DepartmentHead => new[]
+            {
+                ("CE Syllabi", syllabusCount.ToString()),
+                ("Pending Reviews", "0"),
+                ("Approved", approvedCount.ToString()),
+                ("Programs", departmentCount.ToString())
+            },
+            UserRoleType.Educator => new[]
+            {
+                ("CE Drafts", "0"),
+                ("Submitted", "0"),
+                ("Approved", approvedCount.ToString()),
+                ("Programs", departmentCount.ToString())
+            },
+            _ => new[]
+            {
+                ("CE Approved", approvedCount.ToString()),
+                ("Courses", departmentCount.ToString()),
+                ("Searches", "0"),
+                ("Downloads", "0")
+            }
+        };
+
+        QuickLinks = Role switch
+        {
+            UserRoleType.Admin => new[]
+            {
+                ("Manage CE Users", "/admin/registrations"),
+                ("Audit Logs", "/admin/audit-logs")
+            },
+            UserRoleType.DepartmentHead => new[]
+            {
+                ("Review CE Submissions", "/syllabi/search"),
+                ("Archived Versions", "/syllabi/search")
+            },
+            UserRoleType.Educator => new[]
+            {
+                ("Upload CE Syllabus", "/educator/upload"),
+                ("View CE Submissions", "/syllabi/search"),
+                ("Upload Revision", "/educator/upload")
+            },
+            _ => new[]
+            {
+                ("Browse CE Repository", "/syllabi/search"),
+                ("Browse CE Courses", "/syllabi/search")
+            }
+        };
+
+        PrimaryItems = Role switch
+            {
+                UserRoleType.Admin => new[]
+                {
+                    ("Pending users", "CE accounts awaiting verification", "Queue"),
+                    ("Suspended accounts", "Inactive users preserved for audit", "State"),
+                    ("Role tracking", "All CE accounts remain traceable", "Audit")
+                },
+                UserRoleType.DepartmentHead => new[]
+                {
+                    ("CE submissions", "Computer Engineering documents waiting for approval", "Queue"),
+                    ("Revision archive", "Past CE uploads remain downloadable", "History"),
+                    ("CE scope", "Computer Engineering syllabi and oversight", "Scope")
+                },
+                UserRoleType.Educator => new[]
+                {
+                    ("CE drafts", "Editable CE syllabi until submitted", "Draft"),
+                    ("Submitted files", "CE files locked while under review", "Review"),
+                    ("Feedback notes", "Rejected items include required changes", "Notes")
+                },
+                _ => new[]
+                {
+                    ("CE approved syllabi", "Only published CE files are visible", "Read-only"),
+                    ("Search filters", "By CE course, term, instructor", "Search"),
+                    ("Download access", "Published CE syllabi available locally", "Access")
+                }
+            };
+
+        RecentItems = Role switch
+        {
+            UserRoleType.Admin => new[] { ("CE System ready", "Computer Engineering admin queue and audit trail will appear here."), ("CE Seeded data", "Computer Engineering courses and admin account created at startup.") },
+            UserRoleType.DepartmentHead => new[] { ("CE Review queue", "Computer Engineering syllabus submissions will appear here."), ("CE Upload activity", "Recent Computer Engineering uploads will be tracked here.") },
+            UserRoleType.Educator => new[] { ("CE Notifications", "CE approval and rejection notices will appear here."), ("CE Version history", "Each CE upload creates a new archived version.") },
+            _ => new[] { ("CE Repository", "Students can only see approved Computer Engineering syllabi."), ("CE Filters", "Search by CE course code, title, or term.") }
+        };
+    }
+}
