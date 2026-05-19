@@ -12,3 +12,4 @@ C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\ob
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Debug\net10.0\refint\SRVS.Domain.dll
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Debug\net10.0\SRVS.Domain.pdb
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Debug\net10.0\ref\SRVS.Domain.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Domain\obj\Debug\net10.0\SRVS.Domain.sourcelink.json

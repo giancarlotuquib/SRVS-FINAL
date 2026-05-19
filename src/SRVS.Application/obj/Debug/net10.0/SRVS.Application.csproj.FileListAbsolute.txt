@@ -18,3 +18,4 @@ C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Applicati
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Application\obj\Debug\net10.0\refint\SRVS.Application.dll
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Application\obj\Debug\net10.0\SRVS.Application.pdb
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Application\obj\Debug\net10.0\ref\SRVS.Application.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Application\obj\Debug\net10.0\SRVS.Application.sourcelink.json

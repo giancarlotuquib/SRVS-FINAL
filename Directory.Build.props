@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$([System.IO.Path]::Combine($([System.IO.Path]::GetTempPath()), 'srvs-msbuild', 'obj', '$(MSBuildProjectName)'))\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**\bin\**;**\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

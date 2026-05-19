@@ -22,3 +22,4 @@ C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Infrastru
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Infrastructure\obj\Debug\net10.0\refint\SRVS.Infrastructure.dll
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Infrastructure\obj\Debug\net10.0\SRVS.Infrastructure.pdb
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Infrastructure\obj\Debug\net10.0\ref\SRVS.Infrastructure.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\src\SRVS.Infrastructure\obj\Debug\net10.0\SRVS.Infrastructure.sourcelink.json

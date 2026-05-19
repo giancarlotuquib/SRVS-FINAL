@@ -18,8 +18,11 @@ public class SyllabusWorkflowService(
             .FirstOrDefaultAsync(item => item.Id == request.DepartmentId && item.IsActive, cancellationToken)
             ?? throw new InvalidOperationException("Selected department is not available.");
 
-        var document = request.SyllabusDocumentId is null
-            ? new SyllabusDocument
+        SyllabusDocument document;
+        var isNewDocument = request.SyllabusDocumentId is null;
+        if (request.SyllabusDocumentId is null)
+        {
+            document = new SyllabusDocument
             {
                 DepartmentId = department.Id,
                 CourseCode = request.CourseCode.Trim(),
@@ -30,11 +33,15 @@ public class SyllabusWorkflowService(
                 OwnerUserId = request.UploadedByUserId,
                 Status = SyllabusStatus.Draft,
                 IsPublished = false
-            }
-            : await dbContext.SyllabusDocuments
+            };
+        }
+        else
+        {
+            document = await dbContext.SyllabusDocuments
                 .Include(item => item.Versions)
                 .FirstOrDefaultAsync(item => item.Id == request.SyllabusDocumentId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("The requested syllabus could not be found.");
+        }
 
         if (document.Id != Guid.Empty && document.Status is SyllabusStatus.Submitted or SyllabusStatus.Approved)
         {
@@ -66,7 +73,7 @@ public class SyllabusWorkflowService(
         document.CurrentStoragePath = storagePath;
         document.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        if (document.Id == Guid.Empty)
+        if (request.SyllabusDocumentId is null)
         {
             dbContext.SyllabusDocuments.Add(document);
         }
@@ -83,6 +90,8 @@ public class SyllabusWorkflowService(
             UploadedAtUtc = DateTimeOffset.UtcNow
         });
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         dbContext.AuditLogEntries.Add(new AuditLogEntry
         {
             UserId = request.UploadedByUserId,
@@ -91,7 +100,7 @@ public class SyllabusWorkflowService(
             ResultStatus = AuditResultStatus.Success,
             Description = $"Uploaded version V{nextVersionNumber} for course {document.CourseCode}.",
             EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id == Guid.Empty ? null : document.Id.ToString()
+            EntityId = document.Id.ToString()
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);

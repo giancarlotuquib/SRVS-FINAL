@@ -1,0 +1,8 @@
+@page "/admin/dashboard"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Components.Web
+@using SRVS.Domain.Enums
+
+<PageTitle>Admin Dashboard</PageTitle>
+<SRVS.Web.Components.RoleDashboard Role="UserRoleType.Admin" />

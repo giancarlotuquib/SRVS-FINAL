@@ -1,0 +1,310 @@
+@page "/admin/registrations"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using SRVS.Application.Abstractions
+@using SRVS.Domain.Entities
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@inject IRegistrationApprovalService RegistrationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IServiceProvider ServiceProvider
+
+<PageTitle>Registration Approvals</PageTitle>
+
+<section class="container py-4">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 p-md-5">
+            <p class="text-uppercase text-secondary small mb-1">Admin Dashboard</p>
+            <h1 class="h3 mb-2">Registration Approvals</h1>
+            <p class="text-secondary mb-0">Manage pending user accounts. Review and approve or reject access requests across all roles.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="text-secondary small text-uppercase">Pending</div>
+                    <div class="display-6 fw-bold">@pendingCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="text-secondary small text-uppercase">Approved</div>
+                    <div class="display-6 fw-bold">@approvedCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="text-secondary small text-uppercase">Rejected</div>
+                    <div class="display-6 fw-bold">@rejectedCount</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Requested By</th>
+                            <th>Identity ID</th>
+                            <th>Requested Role</th>
+                            <th>Department</th>
+                            <th>Requested At</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (requests.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-secondary">No pending registrations found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var request in requests)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@request.FullName</div>
+                                        <div class="text-secondary small">@request.Email</div>
+                                    </td>
+                                    <td class="fw-semibold">@request.InstitutionalId</td>
+                                    <td><span class="badge text-bg-light">@request.RequestedRole</span></td>
+                                    <td>@(request.Department?.Code ?? "N/A")</td>
+                                    <td class="text-secondary small">@request.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(request.Status)">@request.Status</span>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        @if (request.Status == RegistrationStatus.Pending)
+                                        {
+                                            <button class="btn btn-outline-success btn-sm me-2" @onclick="() => ApproveRequestAsync(request)" disabled="@isProcessing">Approve</button>
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => InitiateReject(request)" disabled="@isProcessing">Reject</button>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-secondary small">Processed</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (requestToReject is not null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header border-bottom-0">
+                        <h5 class="modal-title">Reject Registration</h5>
+                        <button type="button" class="btn-close" aria-label="Close" @onclick="CancelReject" disabled="@isProcessing"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to reject the registration request for <strong>@requestToReject.FullName</strong>?</p>
+                        <div class="mb-3">
+                            <label class="form-label">Rejection Remarks (Optional)</label>
+                            <textarea class="form-control" rows="3" @bind="rejectRemarks" placeholder="Enter reason for rejection..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelReject" disabled="@isProcessing">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmRejectAsync" disabled="@isProcessing">Confirm Rejection</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private System.Threading.Timer? refreshTimer;
+    private const int RefreshIntervalMs = 3000;
+
+    private bool isDisposed;
+
+    private IReadOnlyList<RegistrationRequest> requests = [];
+    private int pendingCount;
+    private int approvedCount;
+    private int rejectedCount;
+    private bool isProcessing;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private ApplicationUser? currentUser;
+
+    private RegistrationRequest? requestToReject;
+    private string rejectRemarks = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity is null || !user.Identity.IsAuthenticated)
+            {
+                errorMessage = "Authentication failed. Please log in again.";
+                return;
+            }
+
+            await using var scope = ServiceProvider.CreateAsyncScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            currentUser = await userManager.GetUserAsync(user);
+            if (currentUser is null)
+            {
+                errorMessage = "Authentication failed: user record not found. Please log in again.";
+                return;
+            }
+
+            await LoadDataAsync();
+            StartPolling();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+
+    private void StartPolling()
+    {
+        // Make sure we only ever have one timer.
+        refreshTimer?.Dispose();
+
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            if (isDisposed || isProcessing || currentUser is null) return;
+
+            try
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadDataAsync();
+                    StateHasChanged();
+                });
+            }
+            catch
+            {
+                // Ignore polling failures; UI actions will show real errors.
+            }
+        }, null, RefreshIntervalMs, RefreshIntervalMs);
+    }
+
+    private void StopPolling()
+    {
+        refreshTimer?.Dispose();
+        refreshTimer = null;
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var query = await RegistrationService.GetQueueAsync();
+        requests = query.Requests;
+        pendingCount = query.PendingCount;
+        approvedCount = query.ApprovedCount;
+        rejectedCount = query.RejectedCount;
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        StopPolling();
+    }
+
+    private string GetStatusBadgeClass(RegistrationStatus status) => status switch
+    {
+        RegistrationStatus.Pending => "text-bg-warning text-dark",
+        RegistrationStatus.Approved => "text-bg-success text-white",
+        RegistrationStatus.Rejected => "text-bg-danger text-white",
+        _ => "text-bg-secondary"
+    };
+
+    private async Task ApproveRequestAsync(RegistrationRequest request)
+    {
+        if (isProcessing || currentUser is null) return;
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await RegistrationService.ApproveAsync(request.Id, currentUser.Id, currentUser.FullName);
+            successMessage = $"Successfully approved {request.FullName}.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving request: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void InitiateReject(RegistrationRequest request)
+    {
+        requestToReject = request;
+        rejectRemarks = string.Empty;
+    }
+
+    private void CancelReject()
+    {
+        requestToReject = null;
+        rejectRemarks = string.Empty;
+    }
+
+    private async Task ConfirmRejectAsync()
+    {
+        if (isProcessing || currentUser is null || requestToReject is null) return;
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await RegistrationService.RejectAsync(requestToReject.Id, currentUser.Id, currentUser.FullName, rejectRemarks);
+            successMessage = $"Successfully rejected {requestToReject.FullName}.";
+            requestToReject = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error rejecting request: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

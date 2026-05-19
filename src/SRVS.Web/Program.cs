@@ -10,6 +10,7 @@ using SRVS.Web.Components;
 using SRVS.Web.Components.Account;
 using SRVS.Web.Data;
 using SRVS.Infrastructure.Services;
+using SRVS.Application.Services;
 using SRVS.Web.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -138,9 +139,7 @@ app.MapGet("/syllabi/versions/{versionId:guid}/download", async (
     if (version is null || version.SyllabusDocument is null) return Results.NotFound();
 
     // Basic permission check - admin, dept head of same dept, or owner
-    var hasAccess = user.Role == UserRoleType.Admin || 
-                    (user.Role == UserRoleType.DepartmentHead && version.SyllabusDocument.DepartmentId == user.DepartmentId) ||
-                    (user.Role == UserRoleType.Educator && (version.SyllabusDocument.OwnerUserId == user.Id || version.SyllabusDocument.DepartmentId == user.DepartmentId));
+    var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.DepartmentId, user.Id);
 
     if (!hasAccess) return Results.Forbid();
 
@@ -327,6 +326,50 @@ static async Task SeedSrvsDataAsync(WebApplication app)
         if (!result.Succeeded)
         {
             throw new InvalidOperationException($"Unable to seed SRVS admin account: {string.Join(", ", result.Errors.Select(error => error.Description))}");
+        }
+    }
+
+    var deptHeadEmail = "depthead@srvs.local";
+    if (await userManager.FindByEmailAsync(deptHeadEmail) is null)
+    {
+        var dept = await dbContext.Departments.FirstOrDefaultAsync(d => d.Code == "CE") 
+                   ?? await dbContext.Departments.FirstOrDefaultAsync();
+        if (dept is not null)
+        {
+            var user = new ApplicationUser
+            {
+                UserName = deptHeadEmail,
+                Email = deptHeadEmail,
+                FullName = "Department Head User",
+                InstitutionalId = "11111",
+                Role = UserRoleType.DepartmentHead,
+                DepartmentId = dept.Id,
+                AccountStatus = UserAccountStatus.Active,
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(user, adminPassword);
+        }
+    }
+
+    var educatorEmail = "educator@srvs.local";
+    if (await userManager.FindByEmailAsync(educatorEmail) is null)
+    {
+        var dept = await dbContext.Departments.FirstOrDefaultAsync(d => d.Code == "CE") 
+                   ?? await dbContext.Departments.FirstOrDefaultAsync();
+        if (dept is not null)
+        {
+            var user = new ApplicationUser
+            {
+                UserName = educatorEmail,
+                Email = educatorEmail,
+                FullName = "Educator User",
+                InstitutionalId = "22222",
+                Role = UserRoleType.Educator,
+                DepartmentId = dept.Id,
+                AccountStatus = UserAccountStatus.Active,
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(user, adminPassword);
         }
     }
 }

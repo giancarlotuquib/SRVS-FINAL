@@ -155,3 +155,4 @@ C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\tests\SRVS.Tests\b
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\tests\SRVS.Tests\bin\Debug\net10.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\tests\SRVS.Tests\bin\Debug\net10.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\tests\SRVS.Tests\bin\Debug\net10.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\tests\SRVS.Tests\obj\Debug\net10.0\SRVS.Tests.sourcelink.json

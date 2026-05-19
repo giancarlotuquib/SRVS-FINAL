@@ -1,9 +1,17 @@
-@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
+@using SRVS.Application.Services
+@using SRVS.Domain.Entities
 @using SRVS.Domain.Enums
 @using SRVS.Web.Data
 
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IServiceProvider ServiceProvider
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
 
 <section class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
@@ -11,7 +19,7 @@
             <p class="text-uppercase text-secondary small mb-1">@RoleLabel dashboard</p>
             <h1 class="h3 mb-0">@Title</h1>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex flex-wrap gap-2">
             @foreach (var link in QuickLinks)
             {
                 <a class="btn btn-outline-primary btn-sm" href="@link.Href">@link.Label</a>
@@ -38,18 +46,93 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h2 class="h5">@PrimaryPanelTitle</h2>
-                    <div class="list-group list-group-flush mt-3">
-                        @foreach (var item in PrimaryItems)
-                        {
-                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="fw-semibold">@item.Title</div>
-                                    <div class="text-secondary small">@item.Description</div>
-                                </div>
-                                <span class="badge text-bg-light">@item.Tag</span>
-                            </div>
-                        }
-                    </div>
+                    @if (Role == UserRoleType.Educator)
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th>Version</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (PrimaryItems.Count == 0)
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-secondary py-4">No syllabus records available right now.</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in PrimaryItems)
+                                        {
+                                            <tr>
+                                                <td class="fw-semibold">@item.Title</td>
+                                                <td>
+                                                    <div>@item.Description</div>
+                                                    @if (!string.IsNullOrWhiteSpace(item.Extra))
+                                                    {
+                                                        <div class="text-secondary small">@item.Extra</div>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <span class="badge @GetRepositoryBadgeClass(item.Tag)">@GetRepositoryLabel(item.Tag)</span>
+                                                </td>
+                                                <td>@GetVersionLabel(item.Extra)</td>
+                                                <td class="text-end text-nowrap">
+                                                    @if (!string.IsNullOrWhiteSpace(item.Href))
+                                                    {
+                                                        <a class="btn btn-primary btn-sm" href="@item.Href">@item.ActionLabel</a>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush mt-3">
+                            @if (PrimaryItems.Count == 0)
+                            {
+                                <div class="list-group-item px-0 text-secondary">No records available right now.</div>
+                            }
+                            else
+                            {
+                                @foreach (var item in PrimaryItems)
+                                {
+                                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                        <div class="me-3">
+                                            <div class="fw-semibold">
+                                                @if (!string.IsNullOrWhiteSpace(item.Href))
+                                                {
+                                                    <a href="@item.Href" class="text-decoration-none">@item.Title</a>
+                                                }
+                                                else
+                                                {
+                                                    @item.Title
+                                                }
+                                            </div>
+                                            <div class="text-secondary small">@item.Description</div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge text-bg-light">@item.Tag</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Href))
+                                            {
+                                                <a class="btn btn-outline-primary btn-sm" href="@item.Href">@item.ActionLabel</a>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -59,35 +142,50 @@
                 <div class="card-body">
                     <h2 class="h5">Recent activity</h2>
                     <div class="list-group list-group-flush mt-3">
-                        @foreach (var item in RecentItems)
+                        @if (RecentItems.Count == 0)
                         {
-                            <div class="list-group-item px-0">
-                                <div class="fw-semibold">@item.Title</div>
-                                <div class="text-secondary small">@item.Description</div>
-                            </div>
+                            <div class="list-group-item px-0 text-secondary">No recent activity yet.</div>
+                        }
+                        else
+                        {
+                            @foreach (var item in RecentItems)
+                            {
+                                <div class="list-group-item px-0">
+                                    <div class="fw-semibold">
+                                        @if (!string.IsNullOrWhiteSpace(item.Href))
+                                        {
+                                            <a href="@item.Href" class="text-decoration-none">@item.Title</a>
+                                        }
+                                        else
+                                        {
+                                            @item.Title
+                                        }
+                                    </div>
+                                    <div class="text-secondary small">@item.Description</div>
+                                </div>
+                            }
                         }
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+
 </section>
 
 @code {
     [Parameter]
     public UserRoleType Role { get; set; }
 
-    private int userCount;
-    private int departmentCount;
-    private int registrationCount;
-    private int syllabusCount;
-    private int approvedCount;
+    private Guid? currentDepartmentId;
+    private string? currentUserId;
+    private CancellationTokenSource? refreshCancellationSource;
 
-    private IReadOnlyList<(string Label, string Value)> Stats { get; set; } = [];
-    private IReadOnlyList<(string Title, string Description, string Tag)> PrimaryItems { get; set; } = [];
-    private IReadOnlyList<(string Title, string Description)> RecentItems { get; set; } = [];
-    private IReadOnlyList<(string Label, string Href)> QuickLinks { get; set; } = [];
-
+    private IReadOnlyList<DashboardStat> Stats { get; set; } = [];
+    private IReadOnlyList<DashboardPrimaryItem> PrimaryItems { get; set; } = [];
+    private IReadOnlyList<DashboardActivityItem> RecentItems { get; set; } = [];
+    private IReadOnlyList<DashboardLink> QuickLinks { get; set; } = [];
     private string RoleLabel => Role switch
     {
         UserRoleType.Admin => "System Administrator",
@@ -108,113 +206,408 @@
 
     private string PrimaryPanelTitle => Role switch
     {
-        UserRoleType.Admin => "Pending CE Registrations",
+        UserRoleType.Admin => "Pending Registrations",
         UserRoleType.DepartmentHead => "Pending CE Syllabus Reviews",
-        UserRoleType.Educator => "CE Syllabi Tracker",
-        UserRoleType.Viewer => "CE Student Access",
+        UserRoleType.Educator => "Syllabus Repository",
+        UserRoleType.Viewer => "Student Access",
         _ => "Overview"
     };
 
     protected override async Task OnInitializedAsync()
     {
-        using var scope = ServiceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await LoadCurrentUserContextAsync();
+        await ReloadAsync();
 
-        userCount = await dbContext.Users.CountAsync();
-        departmentCount = await dbContext.Departments.CountAsync();
-        registrationCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending);
-        syllabusCount = await dbContext.SyllabusDocuments.CountAsync();
-        approvedCount = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved);
+        if (Role == UserRoleType.Educator)
+        {
+            refreshCancellationSource = new CancellationTokenSource();
+            _ = RefreshLoopAsync(refreshCancellationSource.Token);
+        }
+
+    }
+
+    private async Task LoadCurrentUserContextAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        await using var scope = ServiceProvider.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.GetUserAsync(authState.User);
+
+        if (user is null)
+        {
+            return;
+        }
+
+        currentUserId = user.Id;
+        currentDepartmentId = user.DepartmentId;
+    }
+
+    private async Task ReloadAsync()
+    {
+        await using var dbContext = await DbFactory.CreateDbContextAsync();
 
         Stats = Role switch
         {
-            UserRoleType.Admin => new[]
-            {
-                ("CE Users", userCount.ToString()),
-                ("Pending Requests", registrationCount.ToString())
-            },
-            UserRoleType.DepartmentHead => new[]
-            {
-                ("CE Syllabi", syllabusCount.ToString()),
-                ("Pending Reviews", "0"),
-                ("Approved", approvedCount.ToString()),
-                ("Programs", departmentCount.ToString())
-            },
-            UserRoleType.Educator => new[]
-            {
-                ("CE Drafts", "0"),
-                ("Submitted", "0"),
-                ("Approved", approvedCount.ToString()),
-                ("Programs", departmentCount.ToString())
-            },
-            _ => new[]
-            {
-                ("CE Approved", approvedCount.ToString()),
-                ("Courses", departmentCount.ToString()),
-                ("Searches", "0"),
-                ("Downloads", "0")
-            }
+            UserRoleType.Admin => await LoadAdminStatsAsync(dbContext),
+            UserRoleType.DepartmentHead => await LoadDepartmentHeadStatsAsync(dbContext),
+            UserRoleType.Educator => await LoadEducatorStatsAsync(dbContext),
+            UserRoleType.Viewer => await LoadViewerStatsAsync(dbContext),
+            _ => []
         };
 
         QuickLinks = Role switch
         {
             UserRoleType.Admin => new[]
             {
-                ("Manage CE Users", "/admin/registrations"),
-                ("Audit Logs", "/admin/audit-logs")
+                new DashboardLink("Manage Users", "/admin/user-management"),
+                new DashboardLink("Registration Approvals", "/admin/registrations"),
+                new DashboardLink("Audit Logs", "/admin/audit-logs")
             },
             UserRoleType.DepartmentHead => new[]
             {
-                ("Review CE Submissions", "/syllabi/search"),
-                ("Archived Versions", "/syllabi/search")
+                new DashboardLink("Upload Syllabus", "/department-head/upload"),
+                new DashboardLink("Review Submissions", "/department-head/review-submissions"),
+                new DashboardLink("Syllabus Repository", "/department-head/syllabus-repository")
             },
             UserRoleType.Educator => new[]
             {
-                ("Upload CE Syllabus", "/educator/upload"),
-                ("View CE Submissions", "/syllabi/search"),
-                ("Upload Revision", "/educator/upload")
+                new DashboardLink("Upload Syllabus", "/educator/upload")
             },
             _ => new[]
             {
-                ("Browse CE Repository", "/syllabi/search"),
-                ("Browse CE Courses", "/syllabi/search")
+                new DashboardLink("Browse Syllabus Repository", "/syllabi/search"),
+                new DashboardLink("Browse Courses", "/syllabi/search")
             }
         };
 
-        PrimaryItems = Role switch
-            {
-                UserRoleType.Admin => new[]
-                {
-                    ("Pending users", "CE accounts awaiting verification", "Queue"),
-                    ("Suspended accounts", "Inactive users preserved for audit", "State"),
-                    ("Role tracking", "All CE accounts remain traceable", "Audit")
-                },
-                UserRoleType.DepartmentHead => new[]
-                {
-                    ("CE submissions", "Computer Engineering documents waiting for approval", "Queue"),
-                    ("Revision archive", "Past CE uploads remain downloadable", "History"),
-                    ("CE scope", "Computer Engineering syllabi and oversight", "Scope")
-                },
-                UserRoleType.Educator => new[]
-                {
-                    ("CE drafts", "Editable CE syllabi until submitted", "Draft"),
-                    ("Submitted files", "CE files locked while under review", "Review"),
-                    ("Feedback notes", "Rejected items include required changes", "Notes")
-                },
-                _ => new[]
-                {
-                    ("CE approved syllabi", "Only published CE files are visible", "Read-only"),
-                    ("Search filters", "By CE course, term, instructor", "Search"),
-                    ("Download access", "Published CE syllabi available locally", "Access")
-                }
-            };
-
-        RecentItems = Role switch
+        (PrimaryItems, RecentItems) = Role switch
         {
-            UserRoleType.Admin => new[] { ("CE System ready", "Computer Engineering admin queue and audit trail will appear here."), ("CE Seeded data", "Computer Engineering courses and admin account created at startup.") },
-            UserRoleType.DepartmentHead => new[] { ("CE Review queue", "Computer Engineering syllabus submissions will appear here."), ("CE Upload activity", "Recent Computer Engineering uploads will be tracked here.") },
-            UserRoleType.Educator => new[] { ("CE Notifications", "CE approval and rejection notices will appear here."), ("CE Version history", "Each CE upload creates a new archived version.") },
-            _ => new[] { ("CE Repository", "Students can only see approved Computer Engineering syllabi."), ("CE Filters", "Search by CE course code, title, or term.") }
+            UserRoleType.Admin => await LoadAdminPanelsAsync(dbContext),
+            UserRoleType.DepartmentHead => await LoadDepartmentHeadPanelsAsync(dbContext),
+            UserRoleType.Educator => await LoadEducatorPanelsAsync(dbContext),
+            _ => await LoadViewerPanelsAsync(dbContext)
+        };
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static async Task<IReadOnlyList<DashboardStat>> LoadAdminStatsAsync(ApplicationDbContext dbContext)
+    {
+        var userCount = await dbContext.Users.CountAsync();
+        var pendingCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending);
+        var approvedCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Approved);
+        var auditCount = await dbContext.AuditLogEntries.CountAsync();
+
+        return new[]
+        {
+            new DashboardStat("Users", userCount.ToString()),
+            new DashboardStat("Pending Requests", pendingCount.ToString()),
+            new DashboardStat("Approved Requests", approvedCount.ToString()),
+            new DashboardStat("Audit Entries", auditCount.ToString())
         };
     }
+
+    private async Task<IReadOnlyList<DashboardStat>> LoadDepartmentHeadStatsAsync(ApplicationDbContext dbContext)
+    {
+        var departmentId = await ResolveDepartmentIdAsync(dbContext);
+        var pendingReviews = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Submitted);
+        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Approved);
+        var total = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId);
+        var reviewers = await dbContext.Users.CountAsync(user => user.DepartmentId == departmentId && user.Role == UserRoleType.DepartmentHead);
+
+        return new[]
+        {
+            new DashboardStat("Pending Reviews", pendingReviews.ToString()),
+            new DashboardStat("Approved", approved.ToString()),
+            new DashboardStat("Syllabi", total.ToString()),
+            new DashboardStat("Heads", reviewers.ToString())
+        };
+    }
+
+    private async Task<IReadOnlyList<DashboardStat>> LoadEducatorStatsAsync(ApplicationDbContext dbContext)
+    {
+        var authoredDocuments = await LoadEducatorDocumentsAsync(dbContext);
+        var authoredCount = authoredDocuments.Count;
+        var drafts = authoredDocuments.Count(document => document.Status == SyllabusStatus.Draft);
+        var submitted = authoredDocuments.Count(document => document.Status == SyllabusStatus.Submitted);
+        var approved = authoredDocuments.Count(document => document.Status == SyllabusStatus.Approved);
+
+        return new[]
+        {
+            new DashboardStat("Authored", authoredCount.ToString()),
+            new DashboardStat("Drafts", drafts.ToString()),
+            new DashboardStat("Submitted", submitted.ToString()),
+            new DashboardStat("Uploaded", approved.ToString())
+        };
+    }
+
+    private async Task<IReadOnlyList<DashboardStat>> LoadViewerStatsAsync(ApplicationDbContext dbContext)
+    {
+        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished);
+        var recentUpdates = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished && document.UpdatedAtUtc >= DateTimeOffset.UtcNow.AddDays(-7));
+        var departments = await dbContext.Departments.CountAsync();
+        var versions = await dbContext.SyllabusVersions.CountAsync();
+
+        return new[]
+        {
+            new DashboardStat("Approved Syllabi", approved.ToString()),
+            new DashboardStat("Recent Updates", recentUpdates.ToString()),
+            new DashboardStat("Departments", departments.ToString()),
+            new DashboardStat("Versions", versions.ToString())
+        };
+    }
+
+    private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadAdminPanelsAsync(ApplicationDbContext dbContext)
+    {
+        var pendingRequests = await dbContext.RegistrationRequests
+            .AsNoTracking()
+            .Where(request => request.Status == RegistrationStatus.Pending)
+            .OrderByDescending(request => request.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var recentLogs = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .OrderByDescending(log => log.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var primary = pendingRequests.Select(request => new DashboardPrimaryItem(
+            request.FullName,
+            $"{request.RequestedRole} • {request.InstitutionalId}",
+            $"Submitted {request.CreatedAtUtc.ToLocalTime():g}",
+            "Pending")).ToList();
+
+        var activity = recentLogs.Select(log => new DashboardActivityItem(
+            log.ActionType.ToString(),
+            log.Description,
+            log.CreatedAtUtc.ToLocalTime().ToString("g"))).ToList();
+
+        return (primary, activity);
+    }
+
+    private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadDepartmentHeadPanelsAsync(ApplicationDbContext dbContext)
+    {
+        var departmentId = await ResolveDepartmentIdAsync(dbContext);
+
+        var pendingReviews = await dbContext.SyllabusDocuments
+            .AsNoTracking()
+            .Include(document => document.Department)
+            .Where(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Submitted)
+            .OrderByDescending(document => document.SubmittedAtUtc ?? document.UpdatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var recentDocs = await dbContext.SyllabusDocuments
+            .AsNoTracking()
+            .Include(document => document.Department)
+            .Where(document => document.DepartmentId == departmentId)
+            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var primary = pendingReviews.Select(document => new DashboardPrimaryItem(
+            document.CourseCode,
+            document.CourseTitle,
+            $"Instructor: {document.InstructorName}",
+            document.Status.ToString(),
+            Href: $"/syllabi/{document.Id}",
+            ActionLabel: "Review")).ToList();
+
+        var activity = recentDocs.Select(document => new DashboardActivityItem(
+            document.CourseCode,
+            $"{document.Status} • {document.LatestChangeSummary ?? "No change summary provided."}",
+            (document.UpdatedAtUtc ?? document.CreatedAtUtc).ToLocalTime().ToString("g"),
+            $"/syllabi/{document.Id}")).ToList();
+
+        return (primary, activity);
+    }
+
+    private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadEducatorPanelsAsync(ApplicationDbContext dbContext)
+    {
+        var authoredDocs = await LoadEducatorDocumentsAsync(dbContext);
+
+        var activityLogs = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(log => log.UserId == currentUserId)
+            .OrderByDescending(log => log.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var primary = authoredDocs.Select(document => new DashboardPrimaryItem(
+            document.CourseCode,
+            document.CourseTitle,
+            document.Status.ToString(),
+            document.CurrentVersionNumber.ToString(),
+            document.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected
+                ? $"/educator/upload?documentId={document.Id}"
+                : $"/syllabi/{document.Id}",
+            document.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected
+                ? "Edit Draft"
+                : document.Status == SyllabusStatus.Submitted
+                    ? "View Submission"
+                    : document.Status == SyllabusStatus.Approved
+                        ? "View Uploaded"
+                        : "View")).ToList();
+
+        var activity = activityLogs.Select(log => new DashboardActivityItem(
+            log.ActionType.ToString(),
+            log.Description,
+            log.CreatedAtUtc.ToLocalTime().ToString("g"),
+            log.EntityType == nameof(SyllabusDocument) && Guid.TryParse(log.EntityId, out var documentId)
+                ? $"/syllabi/{documentId}"
+                : null)).ToList();
+
+        return (primary, activity);
+    }
+
+    private async Task<IReadOnlyList<SyllabusDocument>> LoadEducatorDocumentsAsync(ApplicationDbContext dbContext)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return [];
+        }
+
+        var uploadedDocumentIds = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(log => log.UserId == currentUserId && log.ActionType == AuditActionType.SyllabusUploaded && log.EntityType == nameof(SyllabusDocument))
+            .Select(log => log.EntityId)
+            .Distinct()
+            .ToListAsync();
+
+        var parsedUploadedDocumentIds = uploadedDocumentIds
+            .Select(entityId => Guid.TryParse(entityId, out var documentId) ? documentId : Guid.Empty)
+            .Where(documentId => documentId != Guid.Empty)
+            .ToList();
+
+        return await dbContext.SyllabusDocuments
+            .AsNoTracking()
+            .Where(document => document.OwnerUserId == currentUserId || parsedUploadedDocumentIds.Contains(document.Id))
+            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .ToListAsync();
+    }
+
+
+    private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadViewerPanelsAsync(ApplicationDbContext dbContext)
+    {
+        var approvedDocs = await dbContext.SyllabusDocuments
+            .AsNoTracking()
+            .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
+            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var recentDocs = await dbContext.SyllabusDocuments
+            .AsNoTracking()
+            .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
+            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        var primary = approvedDocs.Select(document => new DashboardPrimaryItem(
+            document.CourseCode,
+            document.CourseTitle,
+            $"{document.Semester} • {document.InstructorName}",
+            document.CurrentVersionNumber.ToString())).ToList();
+
+        var activity = recentDocs.Select(document => new DashboardActivityItem(
+            document.CourseCode,
+            document.LatestChangeSummary ?? "Recently published syllabus available.",
+            (document.UpdatedAtUtc ?? document.CreatedAtUtc).ToLocalTime().ToString("g"))).ToList();
+
+        return (primary, activity);
+    }
+
+    private async Task<Guid> ResolveDepartmentIdAsync(ApplicationDbContext dbContext)
+    {
+        if (currentDepartmentId is not null)
+        {
+            return currentDepartmentId.Value;
+        }
+
+        var ceDepartment = await dbContext.Departments
+            .AsNoTracking()
+            .Where(department => department.IsActive && department.Code == "CE")
+            .Select(department => department.Id)
+            .FirstOrDefaultAsync();
+
+        if (ceDepartment != Guid.Empty)
+        {
+            return ceDepartment;
+        }
+
+        var firstDepartment = await dbContext.Departments
+            .AsNoTracking()
+            .Where(department => department.IsActive)
+            .Select(department => department.Id)
+            .FirstOrDefaultAsync();
+
+        return firstDepartment == Guid.Empty
+            ? throw new InvalidOperationException("No active department is available.")
+            : firstDepartment;
+    }
+
+    private sealed record DashboardStat(string Label, string Value);
+    private sealed record DashboardPrimaryItem(string Title, string Description, string Tag, string? Extra = null, string? Href = null, string ActionLabel = "View");
+    private sealed record DashboardActivityItem(string Title, string Description, string Timestamp, string? Href = null);
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+        refreshCancellationSource?.Cancel();
+        refreshCancellationSource?.Dispose();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await ReloadAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static string GetRepositoryBadgeClass(string? value)
+        => Enum.TryParse<SyllabusStatus>(value, out var status)
+            ? status switch
+            {
+                SyllabusStatus.Draft => "text-bg-secondary",
+                SyllabusStatus.Submitted => "text-bg-warning text-dark",
+                SyllabusStatus.Approved => "text-bg-success text-white",
+                SyllabusStatus.Rejected => "text-bg-danger text-white",
+                _ => "text-bg-light"
+            }
+            : "text-bg-light";
+
+    private static string GetRepositoryLabel(string? value)
+        => Enum.TryParse<SyllabusStatus>(value, out var status)
+            ? status == SyllabusStatus.Draft
+                ? "Draft"
+                : status == SyllabusStatus.Rejected
+                    ? "Rejected"
+                    : status == SyllabusStatus.Submitted
+                        ? "Submitted"
+                        : status == SyllabusStatus.Approved
+                            ? "Uploaded"
+                            : status.ToString()
+            : "Draft";
+
+    private static string GetVersionLabel(string? value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : $"V{value}";
+
+    private sealed record DashboardLink(string Label, string Href);
 }

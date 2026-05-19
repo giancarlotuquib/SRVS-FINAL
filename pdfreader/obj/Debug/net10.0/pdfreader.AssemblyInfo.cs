@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("pdfreader")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b93cae12c0e0eff1208a590e5230aca795330161")]
 [assembly: System.Reflection.AssemblyProductAttribute("pdfreader")]
 [assembly: System.Reflection.AssemblyTitleAttribute("pdfreader")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

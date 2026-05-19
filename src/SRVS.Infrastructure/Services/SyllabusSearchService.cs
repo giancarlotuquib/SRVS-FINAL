@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SRVS.Application.Abstractions;
 using SRVS.Application.Models;
+using SRVS.Application.Services;
 using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Web.Data;
@@ -36,7 +37,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
                 document.InstructorName,
                 document.CurrentVersionNumber,
                 document.Status,
-                CanDownload(document, role),
+                SyllabusAccessPolicy.CanDownload(document, role, departmentId, userId),
                 GetVisibilityLabel(document, role),
                 document.LatestChangeSummary))
             .ToList();
@@ -52,7 +53,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
             .Include(item => item.Department)
             .FirstOrDefaultAsync(item => item.Id == syllabusDocumentId, cancellationToken);
 
-        return document is not null && IsVisibleToUser(document, role, departmentId, userId) ? document : null;
+        return document is not null && SyllabusAccessPolicy.CanView(document, role, departmentId, userId) ? document : null;
     }
 
     private static IQueryable<SyllabusDocument> BuildScopedQuery(ApplicationDbContext dbContext, UserRoleType role, Guid? departmentId, string userId)
@@ -60,17 +61,33 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         var ceDepartment = dbContext.Departments
             .FirstOrDefault(d => d.Code == "CE" || d.Name.Contains("Computer Engineering"));
 
-        var ceId = ceDepartment?.Id ?? Guid.Empty;
-        var query = dbContext.SyllabusDocuments.Where(doc => doc.DepartmentId == ceId);
+        var query = dbContext.SyllabusDocuments.AsQueryable();
+        var effectiveDepartmentId = departmentId ?? ceDepartment?.Id;
 
         return role switch
         {
             UserRoleType.Admin => query,
-            UserRoleType.DepartmentHead => query.Where(document => document.DepartmentId == ceId),
-            UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId || document.DepartmentId == ceId),
-            UserRoleType.Viewer => query.Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished),
-            _ => query.Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
+            UserRoleType.DepartmentHead => ApplyDepartmentScope(query, effectiveDepartmentId),
+            UserRoleType.Educator => ApplyEducatorScope(query, effectiveDepartmentId, userId),
+            UserRoleType.Viewer => ApplyDepartmentScope(query, effectiveDepartmentId)
+                .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished),
+            _ => ApplyDepartmentScope(query, effectiveDepartmentId)
+                .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
         };
+    }
+
+    private static IQueryable<SyllabusDocument> ApplyDepartmentScope(IQueryable<SyllabusDocument> query, Guid? departmentId)
+    {
+        return departmentId is null
+            ? query
+            : query.Where(document => document.DepartmentId == departmentId.Value);
+    }
+
+    private static IQueryable<SyllabusDocument> ApplyEducatorScope(IQueryable<SyllabusDocument> query, Guid? departmentId, string userId)
+    {
+        return departmentId is null
+            ? query.Where(document => document.OwnerUserId == userId)
+            : query.Where(document => document.OwnerUserId == userId || (document.DepartmentId == departmentId.Value && document.Status == SyllabusStatus.Approved && document.IsPublished));
     }
 
     private static IReadOnlyList<SyllabusDocument> ApplySearchFilters(IEnumerable<SyllabusDocument> documents, SyllabusSearchRequest request)
@@ -96,30 +113,6 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         }
 
         return query.ToList();
-    }
-
-    private static bool IsVisibleToUser(SyllabusDocument document, UserRoleType role, Guid? departmentId, string userId)
-    {
-        return role switch
-        {
-            UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => document.DepartmentId == departmentId,
-            UserRoleType.Educator => document.DepartmentId == departmentId || document.OwnerUserId == userId,
-            UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
-            _ => false
-        };
-    }
-
-    private static bool CanDownload(SyllabusDocument document, UserRoleType role)
-    {
-        return role switch
-        {
-            UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => document.Status is SyllabusStatus.Submitted or SyllabusStatus.Approved,
-            UserRoleType.Educator => document.Status is SyllabusStatus.Draft or SyllabusStatus.Submitted or SyllabusStatus.Approved,
-            UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
-            _ => false
-        };
     }
 
     private static string GetVisibilityLabel(SyllabusDocument document, UserRoleType role)

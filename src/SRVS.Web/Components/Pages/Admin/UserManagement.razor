@@ -1,0 +1,126 @@
+@page "/admin/user-management"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using SRVS.Domain.Entities
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>User Management</PageTitle>
+
+<section class="container py-4">
+    <h1 class="h3 mb-4">User Management</h1>
+
+    @if (users.Count == 0)
+    {
+        <p>No users found.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Institutional ID</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@user.UserName</td>
+                            <td>@user.InstitutionalId</td>
+                            <td>@user.Role</td>
+                            <td>@user.Email</td>
+                            <td>
+                                <span class="badge @GetStatusBadgeClass(user.AccountStatus)">@user.AccountStatus</span>
+                            </td>
+                            <td class="text-nowrap">
+                                <button class="btn btn-sm btn-success me-2" @onclick="() => UpdateUserStatusAsync(user, UserAccountStatus.Active)" disabled="@isProcessing || user.AccountStatus == UserAccountStatus.Active">
+                                    Activate
+                                </button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => UpdateUserStatusAsync(user, UserAccountStatus.Suspended)" disabled="@isProcessing || user.AccountStatus == UserAccountStatus.Suspended">
+                                    Deactivate
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private List<ApplicationUser> users = [];
+    private bool isProcessing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var currentUser = authState.User;
+
+        if (currentUser.Identity?.IsAuthenticated != true || !currentUser.IsInRole("Admin"))
+        {
+            return;
+        }
+
+        await using var dbContext = await DbFactory.CreateDbContextAsync();
+        users = await dbContext.Users
+            .AsNoTracking()
+            .OrderBy(user => user.UserName)
+            .ToListAsync();
+    }
+
+    private async Task UpdateUserStatusAsync(ApplicationUser user, UserAccountStatus newStatus)
+    {
+        if (user.AccountStatus == newStatus || isProcessing)
+        {
+            return;
+        }
+
+        isProcessing = true;
+
+        try
+        {
+            await using var dbContext = await DbFactory.CreateDbContextAsync();
+            var dbUser = await dbContext.Users.FirstOrDefaultAsync(item => item.Id == user.Id);
+
+            if (dbUser is null)
+            {
+                return;
+            }
+
+            dbUser.AccountStatus = newStatus;
+            await dbContext.SaveChangesAsync();
+
+            users = await dbContext.Users
+                .AsNoTracking()
+                .OrderBy(item => item.UserName)
+                .ToListAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private static string GetStatusBadgeClass(UserAccountStatus status) => status switch
+    {
+        UserAccountStatus.Active => "text-bg-success",
+        UserAccountStatus.PendingApproval => "text-bg-warning text-dark",
+        UserAccountStatus.Suspended => "text-bg-secondary",
+        UserAccountStatus.Rejected => "text-bg-danger",
+        UserAccountStatus.Deleted => "text-bg-dark",
+        _ => "text-bg-secondary"
+    };
+}

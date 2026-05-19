@@ -1,0 +1,323 @@
+@page "/educator/upload"
+@page "/faculty/upload"
+@page "/department-head/upload"
+@attribute [Authorize(Roles = "Educator,DepartmentHead")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using SRVS.Application.Abstractions
+@using SRVS.Application.Models
+@using SRVS.Application.Services
+@using SRVS.Domain.Entities
+@using SRVS.Web.Data
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject ISyllabusWorkflowService WorkflowService
+@inject IServiceProvider ServiceProvider
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(DocumentId.HasValue ? "Upload Syllabus Revision" : "Upload New Syllabus")</PageTitle>
+
+<section class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-9">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-uppercase text-secondary small mb-2">@WorkflowLabel</p>
+                    <h1 class="h3 mb-2">@(DocumentId.HasValue ? "Upload Syllabus Revision" : "Upload New Syllabus Draft")</h1>
+                    <p class="text-secondary mb-4">
+                        @(DocumentId.HasValue ? "Upload a new PDF to revise the current draft. Please provide a clear change summary." : "Start a new syllabus workflow. The uploaded document becomes a draft until submitted for review.")
+                    </p>
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(successMessage))
+                    {
+                        <div class="alert alert-success">@successMessage</div>
+                    }
+
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="Input" OnValidSubmit="SaveDraftAsync">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger mb-3" />
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Course Code</label>
+                                    <InputText class="form-control" @bind-Value="Input.CourseCode" disabled="@DocumentId.HasValue" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Semester</label>
+                                    <InputText class="form-control" @bind-Value="Input.Semester" disabled="@DocumentId.HasValue" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Academic Year</label>
+                                    <InputText class="form-control" @bind-Value="Input.AcademicYear" disabled="@DocumentId.HasValue" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Course Title</label>
+                                    <InputText class="form-control" @bind-Value="Input.CourseTitle" disabled="@DocumentId.HasValue" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Instructor Name</label>
+                                    <InputText class="form-control" @bind-Value="Input.InstructorName" disabled="@DocumentId.HasValue" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Change Summary <span class="text-danger">*</span></label>
+                                    <InputTextArea class="form-control" rows="3" @bind-Value="Input.ChangeSummary" placeholder="Briefly describe what changed in this version..." />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Syllabus File</label>
+                                    <InputFile class="form-control" OnChange="HandleFileSelected" accept=".pdf,.docx" />
+                                    <div class="form-text">PDF or DOCX syllabus files are accepted. Max 50MB.</div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                                <button type="submit" class="btn btn-primary" disabled="@isProcessing">
+                                    <i class="bi bi-save me-1"></i> Save Draft
+                                </button>
+                                
+                                @if (savedDocumentId.HasValue)
+                                {
+                                    <button type="button" class="btn btn-success" @onclick="SubmitDraftAsync" disabled="@isProcessing">
+                                        <i class="bi bi-send me-1"></i> Submit for Review
+                                    </button>
+                                }
+                                
+                                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isProcessing">Cancel</button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public Guid? DocumentId { get; set; }
+
+    private UploadModel Input { get; set; } = new();
+    private IBrowserFile? selectedFile;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? savedDocumentId;
+    private bool isLoading;
+    private bool isProcessing;
+    private ApplicationUser? currentUser;
+    private bool isDepartmentHead;
+    private string WorkflowLabel => isDepartmentHead ? "Department Head Workflow" : "Faculty Workflow";
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        await using var scope = ServiceProvider.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        currentUser = await userManager.GetUserAsync(authState.User);
+
+        if (currentUser is null) return;
+        isDepartmentHead = currentUser.Role == UserRoleType.DepartmentHead;
+
+        await using var dbContext = await DbFactory.CreateDbContextAsync();
+
+        if (DocumentId.HasValue)
+        {
+            var doc = await dbContext.SyllabusDocuments.FindAsync(DocumentId.Value);
+            if (doc is not null)
+            {
+                savedDocumentId = doc.Id;
+                if (!SyllabusAccessPolicy.CanRevise(doc, currentUser.Role, currentUser.DepartmentId, currentUser.Id))
+                {
+                    errorMessage = "You do not have permission to revise this syllabus.";
+                }
+                else
+                {
+                    Input.DepartmentId = doc.DepartmentId;
+                    Input.CourseCode = doc.CourseCode;
+                    Input.CourseTitle = doc.CourseTitle;
+                    Input.AcademicYear = doc.AcademicYear;
+                    Input.Semester = doc.Semester;
+                    Input.InstructorName = doc.InstructorName;
+                    // Leave ChangeSummary empty for the new revision
+                }
+            }
+            else
+            {
+                DocumentId = null;
+                savedDocumentId = null;
+                if (currentUser.DepartmentId.HasValue)
+                {
+                    Input.DepartmentId = currentUser.DepartmentId.Value;
+                }
+                else
+                {
+                    var defaultDept = await dbContext.Departments.FirstOrDefaultAsync(d => d.IsActive);
+                    if (defaultDept is not null) Input.DepartmentId = defaultDept.Id;
+                }
+                Input.InstructorName = currentUser.FullName;
+                errorMessage = "The requested syllabus could not be found. A new draft can still be created.";
+            }
+        }
+        else
+        {
+            // Default to user's department
+            if (currentUser.DepartmentId.HasValue)
+            {
+                Input.DepartmentId = currentUser.DepartmentId.Value;
+            }
+            else
+            {
+                var defaultDept = await dbContext.Departments.FirstOrDefaultAsync(d => d.IsActive);
+                if (defaultDept is not null) Input.DepartmentId = defaultDept.Id;
+            }
+            Input.InstructorName = currentUser.FullName;
+        }
+
+        isLoading = false;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs args)
+    {
+        selectedFile = args.File;
+        errorMessage = null;
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        if (currentUser is null) return;
+        if (!string.IsNullOrWhiteSpace(errorMessage) && DocumentId.HasValue)
+        {
+            return;
+        }
+
+        if (selectedFile is null && !DocumentId.HasValue)
+        {
+            errorMessage = "Please select a syllabus file before saving.";
+            return;
+        }
+        if (selectedFile is null && DocumentId.HasValue)
+        {
+            errorMessage = "Please select the new revised syllabus file before saving.";
+            return;
+        }
+
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var fileName = Path.GetFileName(selectedFile!.Name);
+            await using var stream = selectedFile.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            
+            var request = new SyllabusDraftUpsertRequest(
+                savedDocumentId,
+                Input.DepartmentId,
+                Input.CourseCode,
+                Input.CourseTitle,
+                Input.AcademicYear,
+                Input.Semester,
+                Input.InstructorName,
+                Input.ChangeSummary,
+                stream,
+                fileName,
+                currentUser.Id,
+                currentUser.FullName);
+
+            var document = await WorkflowService.SaveDraftAsync(request);
+            savedDocumentId = document.Id;
+            successMessage = $"Draft saved successfully as Version {document.CurrentVersionNumber} for {document.CourseCode}. You may now submit it for review.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving draft: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task SubmitDraftAsync()
+    {
+        if (currentUser is null || savedDocumentId is null) return;
+        
+        isProcessing = true;
+        errorMessage = null;
+        
+        try
+        {
+            await WorkflowService.SubmitAsync(savedDocumentId.Value, currentUser.Id, currentUser.FullName);
+            successMessage = "Syllabus successfully submitted to the department head review queue. Redirecting...";
+            
+            await Task.Delay(2000); // Wait a bit so the user reads the message
+            NavigationManager.NavigateTo($"/syllabi/{savedDocumentId.Value}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error submitting document: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        if (savedDocumentId.HasValue)
+        {
+            NavigationManager.NavigateTo($"/syllabi/{savedDocumentId.Value}");
+        }
+        else if (isDepartmentHead)
+        {
+            NavigationManager.NavigateTo("/department-head/syllabus-repository");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/educator/review-syllabus");
+        }
+    }
+
+    private sealed class UploadModel
+    {
+        public Guid DepartmentId { get; set; }
+
+        [Required(ErrorMessage = "Course Code is required")]
+        public string CourseCode { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Course Title is required")]
+        public string CourseTitle { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Academic Year is required")]
+        public string AcademicYear { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Semester is required")]
+        public string Semester { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Instructor Name is required")]
+        public string InstructorName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A change summary is mandatory for version tracking.")]
+        public string ChangeSummary { get; set; } = string.Empty;
+    }
+}

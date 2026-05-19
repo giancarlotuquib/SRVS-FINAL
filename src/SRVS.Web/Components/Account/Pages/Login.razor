@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using SRVS.Application.Services
 @using SRVS.Domain.Enums
 @using SRVS.Web.Data
@@ -11,7 +12,6 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
-@inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
 <PageTitle>Log in</PageTitle>
@@ -25,13 +25,13 @@
                         <div class="card-body p-4 p-md-5 d-flex flex-column justify-content-between">
                             <div>
                                 <SchoolSeal Class="mb-4 usjr-seal--hero" />
-                                <p class="text-uppercase text-white-50 small mb-2">SRVS Workspace</p>
-                                <h1 class="display-6 fw-semibold mb-3">@(RolePortalName)</h1>
-                                <p class="text-white-50 mb-4">
+                                <p class="text-uppercase text-white small mb-2">SRVS Workspace</p>
+                                <h1 class="display-6 fw-semibold mb-3 text-white">@(RolePortalName)</h1>
+                                <p class="text-white mb-4">
                                     @(RolePortalDescription)
                                 </p>
                             </div>
-                            
+
                             @if (!string.IsNullOrEmpty(PortalRole))
                             {
                                 <div class="mt-4">
@@ -91,9 +91,9 @@
                                     <ValidationSummary class="text-danger" role="alert" />
 
                                     <div class="mb-3">
-                                        <label class="form-label" for="Input.Email">Email Address</label>
-                                        <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control form-control-lg" autocomplete="username" placeholder="name@example.com" />
-                                        <ValidationMessage For="() => Input.Email" class="text-danger" />
+                                        <label class="form-label" for="Input.InstitutionalId">Institutional ID Number</label>
+                                        <InputText @bind-Value="Input.InstitutionalId" id="Input.InstitutionalId" class="form-control form-control-lg" autocomplete="username" placeholder="12345" />
+                                        <ValidationMessage For="() => Input.InstitutionalId" class="text-danger" />
                                     </div>
 
                                     <div class="mb-3">
@@ -123,7 +123,7 @@
                                                 <div class="fw-semibold">New user?</div>
                                                 <div class="text-secondary small">Request an account registration below.</div>
                                             </div>
-                                            <a class="btn btn-outline-primary" href="Account/Register">User Registration</a>
+                                            <a class="btn btn-outline-primary" href="@GetRegisterUrl()">User Registration</a>
                                         </div>
                                     </div>
                                 </EditForm>
@@ -197,8 +197,15 @@
             return;
         }
 
-        var user = await UserManager.FindByEmailAsync(Input.Email.Trim());
+        var institutionalId = Input.InstitutionalId.Trim();
+        var user = await UserManager.Users.FirstOrDefaultAsync(item => item.InstitutionalId == institutionalId);
         if (user is null)
+        {
+            errorMessage = "Error: Invalid login attempt.";
+            return;
+        }
+
+        if (!MatchesPortalRole(user.Role))
         {
             errorMessage = "Error: Invalid login attempt.";
             return;
@@ -230,11 +237,30 @@
         RedirectManager.RedirectTo(DashboardRouteResolver.GetRoute(user.Role));
     }
 
+    private bool MatchesPortalRole(UserRoleType role)
+    {
+        return PortalRole switch
+        {
+            "admin" => role == UserRoleType.Admin,
+            "department-head" => role == UserRoleType.DepartmentHead,
+            "educator" => role == UserRoleType.Educator,
+            "viewer" => role == UserRoleType.Viewer,
+            _ => false
+        };
+    }
+
+    private string GetRegisterUrl()
+    {
+        return string.IsNullOrWhiteSpace(PortalRole)
+            ? "Account/Register"
+            : $"Account/Register?role={Uri.EscapeDataString(PortalRole)}";
+    }
+
     private sealed class InputModel
     {
         [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        [Display(Name = "Institutional ID")]
+        public string InstitutionalId { get; set; } = string.Empty;
 
         [Required]
         [DataType(DataType.Password)]

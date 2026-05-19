@@ -1,0 +1,246 @@
+@page "/syllabi/search"
+@page "/educator/my-drafts"
+@page "/faculty/my-drafts"
+@page "/educator/review-syllabus"
+@page "/faculty/review-syllabus"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using SRVS.Application.Abstractions
+@using SRVS.Application.Models
+@using SRVS.Web.Data
+
+@inject ISyllabusSearchService SearchService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IServiceProvider ServiceProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>@PageTitle</PageTitle>
+
+<section class="container py-4">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 p-md-5">
+            <p class="text-uppercase text-secondary small mb-1">@Eyebrow</p>
+            <h1 class="h3 mb-2">@Heading</h1>
+            <p class="text-secondary mb-0">@Description</p>
+        </div>
+    </div>
+
+    <EditForm Model="search" OnValidSubmit="RunSearchAsync" class="row g-3 align-items-end mb-4">
+        <DataAnnotationsValidator />
+        <div class="col-lg-8">
+            <label class="form-label">Search term</label>
+            <InputText class="form-control" @bind-Value="search.Term" placeholder="CE course code, title, semester, or instructor" />
+        </div>
+        <div class="col-lg-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">Search</button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="ResetAsync">Reset</button>
+        </div>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert alert-info">@message</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Results</div><div class="display-6 fw-bold">@results.TotalCount</div></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Visible</div><div class="display-6 fw-bold">@results.Items.Count</div></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Your Role</div><div class="display-6 fw-bold">@roleLabel</div></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Program</div><div class="display-6 fw-bold">CE Only</div></div></div></div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Title</th>
+                            <th>Term</th>
+                            <th>Status</th>
+                            <th>Version</th>
+                            <th>Access</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in results.Items)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@item.CourseCode</td>
+                                <td>
+                                    <div>@item.CourseTitle</div>
+                                    <div class="text-secondary small">@item.InstructorName</div>
+                                </td>
+                                <td>@item.AcademicYear / @item.Semester</td>
+                                <td><span class="badge text-bg-light">@(item.Status == SyllabusStatus.Approved ? "Uploaded" : item.Status.ToString())</span></td>
+                                <td>V@item.CurrentVersionNumber</td>
+                                <td class="text-secondary small">@item.VisibilityLabel</td>
+                                <td class="text-end text-nowrap">
+                                    <a class="btn btn-primary btn-sm me-2" href="@GetActionHref(item)">@GetActionLabel(item.Status)</a>
+                                    @if (item.CanDownload)
+                                    {
+                                        <a class="btn btn-outline-secondary btn-sm" href="/syllabi/@item.Id/download" target="_blank" title="Download Current Version"><i class="bi bi-download"></i></a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private SearchModel search = new();
+    private SyllabusSearchResults results = new([], 0);
+    private ApplicationUser? currentUser;
+    private string roleLabel = "Viewer";
+    private string? message;
+    private bool hasLoadedCurrentUser;
+    private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?')[0].Trim('/');
+    private bool IsFacultyDraftsPage => CurrentPath.Equals("/educator/my-drafts", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.Equals("/faculty/my-drafts", StringComparison.OrdinalIgnoreCase);
+    private bool IsReviewSubmissionsPage => CurrentPath.Equals("/department-head/review-submissions", StringComparison.OrdinalIgnoreCase);
+    private bool IsDepartmentHeadRepositoryPage => CurrentPath.Equals("/department-head/syllabus-repository", StringComparison.OrdinalIgnoreCase);
+    private bool IsFacultyReviewPage => CurrentPath.Equals("/educator/review-syllabus", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.Equals("/faculty/review-syllabus", StringComparison.OrdinalIgnoreCase);
+
+    private string PageTitle => IsReviewSubmissionsPage
+        ? "Review Submissions"
+        : IsFacultyDraftsPage
+            ? "Syllabus Repository"
+        : IsFacultyReviewPage
+            ? "Review Syllabi"
+        : "Computer Engineering Syllabus Repository";
+
+    private string Eyebrow => IsReviewSubmissionsPage
+        ? "Department Head Review Queue"
+        : IsFacultyDraftsPage
+            ? "Faculty Repository"
+        : IsFacultyReviewPage
+            ? "Faculty Syllabus Workspace"
+        : "Computer Engineering Repository";
+
+    private string Heading => IsReviewSubmissionsPage
+        ? "Review submitted syllabi"
+        : IsFacultyDraftsPage
+            ? "Review and submit syllabus drafts"
+        : IsFacultyReviewPage
+            ? "Review and submit syllabi"
+        : "Search Computer Engineering syllabi";
+
+    private string Description => IsReviewSubmissionsPage
+        ? "Review Computer Engineering syllabi submitted for department head approval."
+        : IsFacultyDraftsPage
+            ? "Open saved draft syllabi to preview the uploaded file, upload revisions, and submit them to the department head review queue."
+        : IsFacultyReviewPage
+            ? "Open your syllabus drafts and submissions to preview files, compare versions, upload revisions, and submit drafts for review."
+        : "Search Computer Engineering course syllabi based on your role and access permissions.";
+
+    [SupplyParameterFromQuery]
+    public string? Status { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        await using var scope = ServiceProvider.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        currentUser = await userManager.GetUserAsync(authState.User)
+            ?? throw new InvalidOperationException("A signed-in user is required.");
+
+        roleLabel = currentUser.Role.ToString();
+        hasLoadedCurrentUser = true;
+        await RunSearchAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (hasLoadedCurrentUser)
+        {
+            await RunSearchAsync();
+        }
+    }
+
+    private async Task RunSearchAsync()
+    {
+        var filterStatus = GetEffectiveStatusFilter();
+
+        results = await SearchService.SearchAsync(
+            new SyllabusSearchRequest(search.Term, filterStatus, 100),
+            currentUser!.Role,
+            currentUser.DepartmentId,
+            currentUser.Id);
+
+        message = results.TotalCount == 0
+            ? "No Computer Engineering syllabi matched your search terms in your allowed scope."
+            : null;
+    }
+
+    private SyllabusStatus? GetEffectiveStatusFilter()
+    {
+        if (IsReviewSubmissionsPage)
+        {
+            return SyllabusStatus.Submitted;
+        }
+
+        if (IsFacultyDraftsPage)
+        {
+            return SyllabusStatus.Draft;
+        }
+
+        return Enum.TryParse<SyllabusStatus>(Status, true, out var parsed) ? parsed : null;
+    }
+
+    private string GetActionLabel(SyllabusStatus status)
+    {
+        if (IsReviewSubmissionsPage)
+        {
+            return "Review Submission";
+        }
+
+        if ((currentUser?.Role == UserRoleType.Educator || currentUser?.Role == UserRoleType.DepartmentHead) && status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
+        {
+            return "Review Draft";
+        }
+
+        return "View Details";
+    }
+
+    private string GetActionHref(SyllabusSearchItem item)
+    {
+        if (IsFacultyDraftsPage && item.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
+        {
+            return $"/educator/upload?documentId={item.Id}";
+        }
+
+        if (IsFacultyReviewPage && item.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
+        {
+            return $"/educator/upload?documentId={item.Id}";
+        }
+
+        if (IsReviewSubmissionsPage)
+        {
+            return $"/syllabi/{item.Id}";
+        }
+
+        return $"/syllabi/{item.Id}";
+    }
+
+    private async Task ResetAsync()
+    {
+        search.Term = string.Empty;
+        await RunSearchAsync();
+    }
+
+    private sealed class SearchModel
+    {
+        public string Term { get; set; } = string.Empty;
+    }
+}

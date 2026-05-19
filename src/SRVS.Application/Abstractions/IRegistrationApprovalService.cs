@@ -9,4 +9,6 @@ public interface IRegistrationApprovalService
     Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, CancellationToken cancellationToken = default);
 
     Task RejectAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, string reviewRemarks, CancellationToken cancellationToken = default);
+
+    Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default);
 }

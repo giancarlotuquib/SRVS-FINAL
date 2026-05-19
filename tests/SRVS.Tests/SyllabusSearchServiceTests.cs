@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SRVS.Application.Abstractions;
 using SRVS.Application.Models;
+using SRVS.Application.Services;
 using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Infrastructure.Services;
@@ -14,46 +15,139 @@ public class SyllabusSearchServiceTests
     [Fact]
     public async Task SearchAsync_ViewerOnlySeesApprovedPublishedDocuments()
     {
-        await using var context = await CreateContextAsync();
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
         SeedData(context);
 
-        ISyllabusSearchService service = new SyllabusSearchService(context);
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
 
         var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Viewer, null, "viewer-user");
 
-        Assert.Equal(1, results.Items.Count);
+        Assert.Single(results.Items);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101" && item.CanDownload);
     }
 
     [Fact]
     public async Task SearchAsync_EducatorSeesDepartmentAndOwnedDocuments()
     {
-        await using var context = await CreateContextAsync();
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
         SeedData(context);
 
-        ISyllabusSearchService service = new SyllabusSearchService(context);
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
 
         var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Educator, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "educator-1");
 
-        Assert.Equal(2, results.TotalCount);
+        Assert.Equal(3, results.TotalCount);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101");
         Assert.Contains(results.Items, item => item.CourseCode == "CE102");
+        Assert.Contains(results.Items, item => item.CourseCode == "CE103");
+    }
+
+    [Fact]
+    public async Task SearchAsync_EducatorDraftFilterShowsDraftsForSubmission()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var results = await service.SearchAsync(
+            new SyllabusSearchRequest(Status: SyllabusStatus.Draft),
+            UserRoleType.Educator,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "educator-1");
+
+        Assert.Equal(2, results.TotalCount);
+        Assert.Contains(results.Items, item => item.CourseCode == "CE102");
+        Assert.Contains(results.Items, item => item.CourseCode == "CE103");
+    }
+
+    [Fact]
+    public async Task GetAccessibleDocumentAsync_EducatorCanOpenSameDepartmentDraft()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var document = await service.GetAccessibleDocumentAsync(
+            Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            UserRoleType.Educator,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "educator-1");
+
+        Assert.NotNull(document);
+        Assert.Equal("CE103", document.CourseCode);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DepartmentHeadSubmittedFilterShowsReviewQueue()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        var submittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "CE102");
+        submittedDocument.Status = SyllabusStatus.Submitted;
+        submittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync();
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var results = await service.SearchAsync(
+            new SyllabusSearchRequest(Status: SyllabusStatus.Submitted),
+            UserRoleType.DepartmentHead,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "dept-head-1");
+
+        Assert.Single(results.Items);
+        Assert.Contains(results.Items, item => item.CourseCode == "CE102");
+    }
+
+    [Fact]
+    public void SyllabusAccessPolicy_EducatorCannotReviewSubmittedSyllabus()
+    {
+        var document = new SyllabusDocument
+        {
+            DepartmentId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            Status = SyllabusStatus.Submitted,
+            OwnerUserId = "educator-1"
+        };
+
+        Assert.False(SyllabusAccessPolicy.CanReview(document, UserRoleType.Educator, document.DepartmentId));
+    }
+
+    [Fact]
+    public void SyllabusAccessPolicy_DepartmentHeadCanReviewSameDepartmentSubmittedSyllabus()
+    {
+        var document = new SyllabusDocument
+        {
+            DepartmentId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            Status = SyllabusStatus.Submitted,
+            OwnerUserId = "educator-1"
+        };
+
+        Assert.True(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, document.DepartmentId));
     }
 
     [Fact]
     public async Task GetAccessibleDocumentAsync_RejectsViewerAccessToDraft()
     {
-        await using var context = await CreateContextAsync();
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
         SeedData(context);
 
-        ISyllabusSearchService service = new SyllabusSearchService(context);
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
 
         var document = await service.GetAccessibleDocumentAsync(Guid.Parse("22222222-2222-2222-2222-222222222222"), UserRoleType.Viewer, null, "viewer-user");
 
         Assert.Null(document);
     }
 
-    private static async Task<ApplicationDbContext> CreateContextAsync()
+    private static async Task<TestDbContextFactory> CreateFactoryAsync()
     {
         var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
@@ -62,9 +156,10 @@ public class SyllabusSearchServiceTests
             .UseSqlite(connection)
             .Options;
 
-        var context = new ApplicationDbContext(options);
+        await using var context = new ApplicationDbContext(options);
         await context.Database.EnsureCreatedAsync();
-        return context;
+
+        return new TestDbContextFactory(options, connection);
     }
 
     private static void SeedData(ApplicationDbContext context)
@@ -121,8 +216,51 @@ public class SyllabusSearchServiceTests
                 CurrentVersionNumber = 1,
                 CurrentFileName = "BUS200-V1.pdf",
                 CurrentStoragePath = "C:\\temp\\BUS200-V1.pdf"
+            },
+            new SyllabusDocument
+            {
+                Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                DepartmentId = department.Id,
+                CourseCode = "CE103",
+                CourseTitle = "Signals and Systems",
+                AcademicYear = "2025-2026",
+                Semester = "1st Semester",
+                InstructorName = "Prof. Cruz",
+                OwnerUserId = "educator-3",
+                Status = SyllabusStatus.Draft,
+                IsPublished = false,
+                CurrentVersionNumber = 1,
+                CurrentFileName = "CE103-V1.pdf",
+                CurrentStoragePath = "C:\\temp\\CE103-V1.pdf"
             });
 
         context.SaveChanges();
+    }
+
+    private sealed class TestDbContextFactory : IDbContextFactory<ApplicationDbContext>, IAsyncDisposable
+    {
+        private readonly DbContextOptions<ApplicationDbContext> options;
+        private readonly SqliteConnection connection;
+
+        public TestDbContextFactory(DbContextOptions<ApplicationDbContext> options, SqliteConnection connection)
+        {
+            this.options = options;
+            this.connection = connection;
+        }
+
+        public ApplicationDbContext CreateDbContext()
+        {
+            return new ApplicationDbContext(options);
+        }
+
+        public ValueTask<ApplicationDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+        {
+            return ValueTask.FromResult(CreateDbContext());
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return connection.DisposeAsync();
+        }
     }
 }

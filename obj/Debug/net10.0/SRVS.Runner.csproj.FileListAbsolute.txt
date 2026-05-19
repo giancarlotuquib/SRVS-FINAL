@@ -12,3 +12,4 @@ C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\obj\Debug\net10.0\
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\obj\Debug\net10.0\SRVS.Runner.pdb
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\obj\Debug\net10.0\SRVS.Runner.genruntimeconfig.cache
 C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\obj\Debug\net10.0\ref\SRVS.Runner.dll
+C:\Users\BSA\OneDrive - BSA Business Solutions\Documents\SRVS\obj\Debug\net10.0\SRVS.Runner.sourcelink.json

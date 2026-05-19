@@ -8,7 +8,7 @@
 @using SRVS.Web.Data
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject UserManager<ApplicationUser> UserManager
+@inject IServiceProvider ServiceProvider
 @inject NavigationManager NavigationManager
 @inject ILogger<MainLayout> Logger
 
@@ -78,7 +78,11 @@
     private async Task RefreshSidebarStateAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
+        
+        await using var scope = ServiceProvider.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.GetUserAsync(authState.User);
+        
         currentRole = user?.Role;
 
         UpdateSidebarVisibility();
@@ -113,7 +117,8 @@
 
         showSidebar =
             string.Equals(currentPath, workspacePrefix, StringComparison.OrdinalIgnoreCase)
-            || currentPath.StartsWith(workspacePrefix + "/", StringComparison.OrdinalIgnoreCase);
+            || currentPath.StartsWith(workspacePrefix + "/", StringComparison.OrdinalIgnoreCase)
+            || currentPath.StartsWith("/syllabi", StringComparison.OrdinalIgnoreCase);
     }
 
     public void Dispose()

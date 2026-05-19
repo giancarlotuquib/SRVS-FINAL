@@ -40,6 +40,11 @@ public class RegistrationApprovalService(
         return new RegistrationReviewQuery(pending, pendingCount, approvedCount, rejectedCount);
     }
 
+    public async Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending, cancellationToken);
+    }
+
     public async Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, CancellationToken cancellationToken = default)
     {
         var request = await LoadRequestAsync(registrationRequestId, cancellationToken);

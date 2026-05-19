@@ -6,7 +6,7 @@
 @using SRVS.Web.Data
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject UserManager<ApplicationUser> UserManager
+@inject IServiceProvider ServiceProvider
 @inject NavigationManager NavigationManager
 
 <div class="nav-shell">
@@ -22,20 +22,20 @@
         <Authorized>
             @if (currentUser is not null)
             {
-                <div class="nav-user">
-                    <div class="nav-user__avatar">@UserInitials</div>
-                    <div class="nav-user__meta">
-                        <div class="nav-user__name">@DisplayName</div>
-                        <div class="nav-user__role">@RoleLabel</div>
+                    <div class="nav-user">
+                        <div class="nav-user__avatar">@UserInitials</div>
+                        <div class="nav-user__meta">
+                            <div class="nav-user__name">@DisplayName</div>
+                            <div class="nav-user__role">@RoleLabel</div>
+                        </div>
                     </div>
-                </div>
 
                 <div class="nav-section">
                     <div class="nav-section__label">Workspace</div>
                     <nav class="nav flex-column">
                         @foreach (var link in RoleLinks)
                         {
-                            <div class="nav-item">
+                            <div class="nav-item" key="@link.Href">
                                 <NavLink class="nav-link" href="@link.Href" Match="@link.Match">
                                     <span class="nav-link__icon @link.Icon" aria-hidden="true"></span>
                                     <span>@link.Label</span>
@@ -121,19 +121,21 @@
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Admin), "nav-link__icon--dashboard", NavLinkMatch.All),
             new("Registration Approvals", "/admin/registrations", "nav-link__icon--users"),
-            new("Audit Logs", "/admin/audit-logs", "nav-link__icon--audit")
+            new("Audit Logs", "/admin/audit-logs", "nav-link__icon--audit"),
+            new("User Management", "/admin/user-management", "nav-link__icon--users")
         ],
         UserRoleType.DepartmentHead =>
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.DepartmentHead), "nav-link__icon--dashboard", NavLinkMatch.All),
-            new("Review Submissions", "/syllabi/search", "nav-link__icon--review"),
-            new("Syllabus Repository", "/syllabi/search", "nav-link__icon--repository")
+            new("Upload Syllabus", "/department-head/upload", "nav-link__icon--upload"),
+            new("Review Submissions", "/department-head/review-submissions", "nav-link__icon--review"),
+            new("Syllabus Repository", "/department-head/syllabus-repository", "nav-link__icon--repository")
         ],
         UserRoleType.Educator =>
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Educator), "nav-link__icon--dashboard", NavLinkMatch.All),
             new("Upload Syllabus", "/educator/upload", "nav-link__icon--upload"),
-            new("My Syllabi", "/syllabi/search", "nav-link__icon--repository")
+            new("Syllabus Repository", "/syllabi/search", "nav-link__icon--repository")
         ],
         UserRoleType.Viewer =>
         [
@@ -153,7 +155,10 @@
         NavigationManager.LocationChanged += OnLocationChanged;
 
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        currentUser = await UserManager.GetUserAsync(authState.User);
+        
+        await using var scope = ServiceProvider.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        currentUser = await userManager.GetUserAsync(authState.User);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
