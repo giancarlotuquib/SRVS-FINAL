@@ -13,9 +13,9 @@ public static class InstitutionalIdRules
 
         return role switch
         {
+            UserRoleType.Admin => institutionalId.Length == 5,
             UserRoleType.DepartmentHead or UserRoleType.Educator => institutionalId.Length == 5,
             UserRoleType.Viewer => institutionalId.Length == 10,
-            UserRoleType.Admin => institutionalId.Length >= 5,
             _ => false
         };
     }

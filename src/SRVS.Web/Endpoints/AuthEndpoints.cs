@@ -15,11 +15,59 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        var authGroup = app.MapGroup("/api/auth").WithTags("Auth");
+        var authGroup = app.MapGroup("/api/auth").WithTags("Auth").DisableAntiforgery();
+
+        app.MapPost("/Account/Login", async ([FromForm] LoginRequest request, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.SchoolId) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("School ID and password are required."));
+            }
+
+            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
+            {
+                var message = request.Role == UserRoleType.Viewer
+                    ? "Student School IDs must contain exactly 10 digits."
+                    : "Admin, Department Head, and Faculty School IDs must contain exactly 5 digits.";
+
+                return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString(message));
+            }
+
+            var user = await userManager.Users.FirstOrDefaultAsync(candidate => candidate.InstitutionalId == request.SchoolId.Trim());
+            if (user is null || user.Role != request.Role)
+            {
+                return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("Invalid School ID or password."));
+            }
+
+            var result = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);
+            if (result.Succeeded)
+            {
+                user.LastLoginAtUtc = DateTimeOffset.UtcNow;
+                await userManager.UpdateAsync(user);
+
+                var destination = user.Role == UserRoleType.Admin
+                    ? "/admin/dashboard"
+                    : SRVS.Application.Services.DashboardRouteResolver.GetRoute(user.Role);
+
+                return Results.Redirect(destination);
+            }
+
+            if (result.IsLockedOut)
+            {
+                return Results.Redirect("/Account/Lockout");
+            }
+
+            return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("Invalid School ID or password."));
+        }).DisableAntiforgery();
 
         // Register
         authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager) =>
         {
+            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
+            {
+                return Results.BadRequest(new { error = "Institutional ID must match the selected role: 5 digits for Admin, Department Head, and Educator; 10 digits for Student." });
+            }
+
             // Check for existing InstitutionalId (SchoolId)
             var existingUserById = await userManager.Users.FirstOrDefaultAsync(u => u.InstitutionalId == request.SchoolId);
             if (existingUserById != null)
@@ -49,23 +97,46 @@ public static class AuthEndpoints
 
 
 
-        // Login
-        authGroup.MapPost("/login", async ([FromBody] LoginRequest request, UserManager<ApplicationUser> userManager) =>
+        authGroup.MapPost("/login", async ([FromBody] LoginRequest request, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager) =>
         {
+            // Model validation attributes ensure required fields are present.
+            if (string.IsNullOrWhiteSpace(request.SchoolId) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return Results.BadRequest(new { error = "SchoolId and Password are required." });
+            }
+
+
             var user = await userManager.Users.FirstOrDefaultAsync(u => u.InstitutionalId == request.SchoolId);
-            if (user is null) return Results.Unauthorized();
-            
-            var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
-            if (!passwordValid) return Results.Unauthorized();
+            if (user == null) return Results.Unauthorized();
 
             if (user.Role != request.Role)
             {
                 return Results.Json(new { correctRole = user.Role.ToString() }, statusCode: 403);
             }
 
-            // TODO: generate actual JWT token instead of dummy
-            var token = "dummy-jwt-token";
-            return Results.Ok(new { token });
+            var signInResult = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);
+            if (signInResult.Succeeded)
+            {
+                await signInManager.SignInAsync(user, isPersistent: false);
+                return Results.Ok(new { message = "Signed in." });
+            }
+            return Results.Unauthorized();
+        });
+                
+
+        // Debug endpoint to check admin existence
+        authGroup.MapGet("/debug/admin", async (UserManager<ApplicationUser> userManager) =>
+        {
+            var admin = await userManager.FindByEmailAsync("admin@srvs.local");
+            if (admin == null) return Results.NotFound("Admin user not found.");
+            return Results.Ok(new { admin.InstitutionalId, admin.Email, admin.Role, admin.AccountStatus });
+        });
+
+        // Debug endpoint to list all users
+        authGroup.MapGet("/debug/users", async (UserManager<ApplicationUser> userManager) =>
+        {
+            var users = await userManager.Users.Select(u => new { u.Id, u.Email, u.InstitutionalId, u.Role, u.AccountStatus }).ToListAsync();
+            return Results.Ok(users);
         });
 
         // Reset password custom logic

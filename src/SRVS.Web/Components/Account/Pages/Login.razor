@@ -1,15 +1,9 @@
-@page "/"
 @page "/Account/Login"
 
-@using System.ComponentModel.DataAnnotations
-@using System.Net.Http.Json
-@using SyllabusRepository.DTOs
+@using Microsoft.AspNetCore.Components
 @using SRVS.Domain.Enums
 
-@inject HttpClient Http
 @inject NavigationManager NavigationManager
-
-<PageTitle>Log in</PageTitle>
 
 <div class="container py-4 py-lg-5">
     <div class="row justify-content-center">
@@ -30,45 +24,36 @@
                         </div>
                     }
 
-                    <EditForm FormName="loginForm" method="post" Model="@LoginInput" OnValidSubmit="LoginUser">
-                        <DataAnnotationsValidator />
+                    <form method="post" action="/Account/Login">
+                        <input type="hidden" name="SchoolId" value="@(loginModel.SchoolId ?? string.Empty)" />
+                        <input type="hidden" name="Password" value="@(loginModel.Password ?? string.Empty)" />
+                        <input type="hidden" name="Role" value="@(loginModel.Role)" />
+
                         <div class="mb-3">
-                            <label class="form-label" for="LoginInput.SchoolId">School ID</label>
-                            <InputText @bind-Value="LoginInput.SchoolId" id="LoginInput.SchoolId" class="form-control" placeholder="YYYY-XXXXX" autocomplete="username" />
-                            <ValidationMessage For="() => LoginInput.SchoolId" class="text-danger" />
+                            <label class="form-label" for="SchoolId">School ID</label>
+                            <input type="text" name="SchoolId" id="SchoolId" class="form-control" placeholder="ID number" autocomplete="username" value="@(loginModel.SchoolId ?? string.Empty)" />
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label" for="LoginInput.Role">Sign in as</label>
-                            <InputSelect @bind-Value="LoginInput.Role" id="LoginInput.Role" class="form-select">
-                                <option value="" disabled>Select role</option>
-                                <option value="@UserRoleType.Admin">Admin</option>
-                                <option value="@UserRoleType.DepartmentHead">Department Head</option>
-                                <option value="@UserRoleType.Educator">Faculty</option>
-                                <option value="@UserRoleType.Viewer">Student</option>
-                            </InputSelect>
-                            <ValidationMessage For="() => LoginInput.Role" class="text-danger" />
+                            <label class="form-label" for="Role">Sign in as</label>
+                            <select name="Role" id="Role" class="form-select">
+                                <option value="Admin" selected="@(loginModel.Role == UserRoleType.Admin)">Admin</option>
+                                <option value="DepartmentHead" selected="@(loginModel.Role == UserRoleType.DepartmentHead)">Department Head</option>
+                                <option value="Educator" selected="@(loginModel.Role == UserRoleType.Educator)">Faculty</option>
+                                <option value="Viewer" selected="@(loginModel.Role == UserRoleType.Viewer)">Student</option>
+                            </select>
                         </div>
+
                         <div class="mb-4">
-                            <label class="form-label d-flex justify-content-between" for="LoginInput.Password">
+                            <label class="form-label d-flex justify-content-between" for="Password">
                                 <span>Password</span>
                                 <a class="small text-decoration-none" href="/Account/ForgotPassword">Forgot password?</a>
                             </label>
-                            <div class="input-group">
-                                <InputText type="@(ShowPassword ? "text" : "password")" @bind-Value="LoginInput.Password" id="LoginInput.Password" class="form-control" autocomplete="current-password" placeholder="Password" />
-                                <button type="button" class="btn btn-outline-secondary" @onclick="TogglePasswordVisibility">
-                                    <i class="bi @(ShowPassword ? "bi-eye-slash" : "bi-eye")"></i>
-                                </button>
-                            </div>
-                            <ValidationMessage For="() => LoginInput.Password" class="text-danger" />
+                            <input type="password" name="Password" id="Password" class="form-control" autocomplete="current-password" placeholder="Password" value="@(loginModel.Password ?? string.Empty)" />
                         </div>
-                        <button type="submit" class="btn btn-success btn-lg w-100" disabled="@IsSubmitting">
-                            @if (IsSubmitting)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            }
-                            Log in
-                        </button>
-                    </EditForm>
+
+                        <button type="submit" class="btn btn-primary w-100 my-3">Log In</button>
+                    </form>
 
                     <hr class="my-4" />
                     <div class="text-center">
@@ -81,65 +66,15 @@
 </div>
 
 @code {
-    private bool IsSubmitting;
-    private bool ShowPassword;
-    private string? ErrorMessage;
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorMessage { get; set; }
 
-    
-// Login model initialized with property initializer
-public LoginRequest LoginInput { get; set; } = new();
+    private LoginModel loginModel { get; set; } = new() { Role = UserRoleType.Admin };
 
-    private void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
-
-    private async Task LoginUser()
+    private sealed class LoginModel
     {
-        IsSubmitting = true;
-        ErrorMessage = null;
-        try
-        {
-            // Ensure LoginInput is instantiated (handles possible null from form post)
-            if (LoginInput == null)
-                LoginInput = new();
-            // Validate role selection (client‑side)
-            if (!Enum.IsDefined(typeof(UserRoleType), LoginInput.Role))
-            {
-                ErrorMessage = "Please select a role.";
-                // Ensure the UI is no longer in submitting state
-                IsSubmitting = false;
-                return;
-            }
-
-            var response = await Http.PostAsJsonAsync("/api/auth/login", LoginInput);
-            if (response.IsSuccessStatusCode)
-            {
-                NavigationManager.NavigateTo("/dashboard");
-            }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
-                ErrorMessage = "Invalid School ID or password.";
-            }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-            {
-                var err = await response.Content.ReadFromJsonAsync<RoleMismatchResponse>();
-                ErrorMessage = $"Your account is registered as {err?.CorrectRole}. Please select the correct role to continue.";
-            }
-            else
-            {
-                ErrorMessage = "An unexpected error occurred. Please try again.";
-            }
-        }
-        catch
-        {
-            ErrorMessage = "Unable to connect to the authentication server.";
-        }
-        finally
-        {
-            IsSubmitting = false;
-        }
-    }
-
-    private class RoleMismatchResponse
-    {
-        public string CorrectRole { get; set; } = string.Empty;
+        public string SchoolId { get; set; } = string.Empty;
+        public UserRoleType Role { get; set; } = UserRoleType.Admin;
+        public string Password { get; set; } = string.Empty;
     }
 }

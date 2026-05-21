@@ -57,7 +57,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="RegisterInput.SchoolId">School ID</label>
-                            <InputText @bind-Value="RegisterInput.SchoolId" id="RegisterInput.SchoolId" class="form-control" placeholder="YYYY-XXXXX" autocomplete="username" />
+                            <InputText @bind-Value="RegisterInput.SchoolId" id="RegisterInput.SchoolId" class="form-control" placeholder="5 digits or 10 digits" autocomplete="username" />
+                            <div class="form-text small text-muted">Admin, Department Head, and Faculty use 5 digits; Student uses 10 digits.</div>
                             <ValidationMessage For="() => RegisterInput.SchoolId" class="text-danger small" />
                         </div>
                         <div class="mb-3">
@@ -119,7 +120,12 @@
     private string? errorMessage;
 
     [SupplyParameterFromForm]
-    private RegisterRequest RegisterInput { get; set; } = new RegisterRequest();
+    private RegisterRequest RegisterInput { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        RegisterInput ??= new RegisterRequest();
+    }
 
     private void TogglePasswordVisibility() => showPassword = !showPassword;
     private void ToggleConfirmPasswordVisibility() => showConfirmPassword = !showConfirmPassword;

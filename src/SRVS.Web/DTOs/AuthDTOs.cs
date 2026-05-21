@@ -32,7 +32,7 @@ public class RegisterRequest
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "School ID is required.")]
-    [RegularExpression(@"^\\d{4}-\\d{5}$", ErrorMessage = "School ID must follow the format YYYY-XXXXX.")]
+    [RegularExpression(@"^(?:\d{5}|\d{10})$", ErrorMessage = "School ID must be exactly 5 digits for Admin, Department Head, and Faculty, or 10 digits for Student.")]
     [JsonPropertyName("schoolId")]
     public string SchoolId { get; set; } = string.Empty;
 
@@ -42,7 +42,7 @@ public class RegisterRequest
 
     [Required(ErrorMessage = "Password is required.")]
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
-    [RegularExpression(@"^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$", ErrorMessage = "Password must contain at least one uppercase letter, one number, and one special character.")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$", ErrorMessage = "Password must contain at least one uppercase letter, one number, and one special character.")]
     [JsonPropertyName("password")]
     public string Password { get; set; } = string.Empty;
 
@@ -61,7 +61,7 @@ public class ResetPasswordRequest
 
     [Required(ErrorMessage = "New password is required.")]
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
-    [RegularExpression(@"^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$", ErrorMessage = "Password must contain at least one uppercase letter, one number, and one special character.")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$", ErrorMessage = "Password must contain at least one uppercase letter, one number, and one special character.")]
     [JsonPropertyName("newPassword")]
     public string NewPassword { get; set; } = string.Empty;
 

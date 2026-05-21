@@ -6,6 +6,8 @@ namespace SRVS.Tests;
 public class InstitutionalIdRulesTests
 {
     [Theory]
+    [InlineData(UserRoleType.Admin, "00000", true)]
+    [InlineData(UserRoleType.Admin, "0000", false)]
     [InlineData(UserRoleType.DepartmentHead, "12345", true)]
     [InlineData(UserRoleType.Educator, "54321", true)]
     [InlineData(UserRoleType.Viewer, "1234567890", true)]
