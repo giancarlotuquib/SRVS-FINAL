@@ -2,133 +2,77 @@
 @page "/Account/Login"
 
 @using System.ComponentModel.DataAnnotations
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Identity
-@using Microsoft.EntityFrameworkCore
-@using SRVS.Application.Services
+@using System.Net.Http.Json
+@using SyllabusRepository.DTOs
 @using SRVS.Domain.Enums
-@using SRVS.Web.Data
 
-@inject UserManager<ApplicationUser> UserManager
-@inject SignInManager<ApplicationUser> SignInManager
-@inject ILogger<Login> Logger
-@inject IdentityRedirectManager RedirectManager
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
 
 <PageTitle>Log in</PageTitle>
 
 <div class="container py-4 py-lg-5">
     <div class="row justify-content-center">
-        <div class="col-12 col-xl-10">
-            <div class="row g-4 align-items-stretch">
-                <div class="col-lg-5">
-                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-dark text-white">
-                        <div class="card-body p-4 p-md-5 d-flex flex-column justify-content-between">
-                            <div>
-                                <SchoolSeal Class="mb-4 usjr-seal--hero" />
-                                <p class="text-uppercase text-white small mb-2">SRVS Workspace</p>
-                                <h1 class="display-6 fw-semibold mb-3 text-white">@(RolePortalName)</h1>
-                                <p class="text-white mb-4">
-                                    @(RolePortalDescription)
-                                </p>
-                            </div>
-
-                            @if (!string.IsNullOrEmpty(PortalRole))
-                            {
-                                <div class="mt-4">
-                                    <a href="/Account/Login" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i> Change Portal</a>
-                                </div>
-                            }
-                        </div>
+        <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-journal-bookmark-fill display-4 text-success"></i>
+                        <h1 class="h3 mt-3 mb-1 fw-bold" style="font-weight:500;">Syllabus Repository</h1>
+                        <p class="text-warning small text-uppercase fw-semibold" style="letter-spacing:0.1em;">ACADEMIC DOCUMENT MANAGEMENT</p>
                     </div>
-                </div>
 
-                <div class="col-lg-7">
-                    <div class="card shadow-sm border-0 rounded-4 h-100">
-                        <div class="card-body p-4 p-md-5">
-                            @if (string.IsNullOrEmpty(PortalRole))
-                            {
-                                <h2 class="h3 mb-4">Select your login portal</h2>
-                                <div class="d-grid gap-3">
-                                    <a href="/Account/Login?portal=admin" class="btn btn-outline-primary btn-lg text-start d-flex align-items-center">
-                                        <i class="bi bi-shield-lock display-6 me-3"></i>
-                                        <div>
-                                            <div class="fw-bold fs-5">System Administrator</div>
-                                            <div class="small text-secondary fw-normal">Manage accounts and monitor audits</div>
-                                        </div>
-                                    </a>
-                                    <a href="/Account/Login?portal=department-head" class="btn btn-outline-primary btn-lg text-start d-flex align-items-center">
-                                        <i class="bi bi-diagram-3 display-6 me-3"></i>
-                                        <div>
-                                            <div class="fw-bold fs-5">Department Head</div>
-                                            <div class="small text-secondary fw-normal">Review and approve syllabi</div>
-                                        </div>
-                                    </a>
-                                    <a href="/Account/Login?portal=educator" class="btn btn-outline-primary btn-lg text-start d-flex align-items-center">
-                                        <i class="bi bi-person-workspace display-6 me-3"></i>
-                                        <div>
-                                            <div class="fw-bold fs-5">Faculty / Educator</div>
-                                            <div class="small text-secondary fw-normal">Upload and revise syllabi drafts</div>
-                                        </div>
-                                    </a>
-                                    <a href="/Account/Login?portal=viewer" class="btn btn-outline-primary btn-lg text-start d-flex align-items-center">
-                                        <i class="bi bi-book display-6 me-3"></i>
-                                        <div>
-                                            <div class="fw-bold fs-5">Student / Viewer</div>
-                                            <div class="small text-secondary fw-normal">Access approved syllabi</div>
-                                        </div>
-                                    </a>
-                                </div>
-                            }
-                            else
-                            {
-                                <h2 class="h3 mb-2">@PortalRoleName Login</h2>
-                                <p class="text-secondary mb-4">Enter your credentials to access the @PortalRoleName workspace.</p>
-
-                                <StatusMessage Message="@errorMessage" />
-
-                                <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
-                                    <DataAnnotationsValidator />
-                                    <ValidationSummary class="text-danger" role="alert" />
-
-                                    <div class="mb-3">
-                                        <label class="form-label" for="Input.InstitutionalId">Institutional ID Number</label>
-                                        <InputText @bind-Value="Input.InstitutionalId" id="Input.InstitutionalId" class="form-control form-control-lg" autocomplete="username" placeholder="12345" />
-                                        <ValidationMessage For="() => Input.InstitutionalId" class="text-danger" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label" for="Input.Password">Password</label>
-                                        <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control form-control-lg" autocomplete="current-password" placeholder="password" />
-                                        <ValidationMessage For="() => Input.Password" class="text-danger" />
-                                    </div>
-
-                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
-                                        <div class="form-check">
-                                            <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" id="Input.RememberMe" />
-                                            <label class="form-check-label" for="Input.RememberMe">Remember me</label>
-                                        </div>
-
-                                        <a class="small" href="Account/ForgotPassword">Forgot password?</a>
-                                    </div>
-
-                                    <button type="submit" class="btn btn-primary btn-lg w-100">Log in as @PortalRoleName</button>
-
-                                    <div class="text-center mt-3 small text-secondary">
-                                        USJR Computer Engineering
-                                    </div>
-
-                                    <div class="border-top mt-4 pt-4">
-                                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                                            <div>
-                                                <div class="fw-semibold">New user?</div>
-                                                <div class="text-secondary small">Request an account registration below.</div>
-                                            </div>
-                                            <a class="btn btn-outline-primary" href="@GetRegisterUrl()">User Registration</a>
-                                        </div>
-                                    </div>
-                                </EditForm>
-                            }
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            <div>@ErrorMessage</div>
                         </div>
+                    }
+
+                    <EditForm FormName="loginForm" method="post" Model="@LoginInput" OnValidSubmit="LoginUser">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label" for="LoginInput.SchoolId">School ID</label>
+                            <InputText @bind-Value="LoginInput.SchoolId" id="LoginInput.SchoolId" class="form-control" placeholder="YYYY-XXXXX" autocomplete="username" />
+                            <ValidationMessage For="() => LoginInput.SchoolId" class="text-danger" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="LoginInput.Role">Sign in as</label>
+                            <InputSelect @bind-Value="LoginInput.Role" id="LoginInput.Role" class="form-select">
+                                <option value="" disabled>Select role</option>
+                                <option value="@UserRoleType.Admin">Admin</option>
+                                <option value="@UserRoleType.DepartmentHead">Department Head</option>
+                                <option value="@UserRoleType.Educator">Faculty</option>
+                                <option value="@UserRoleType.Viewer">Student</option>
+                            </InputSelect>
+                            <ValidationMessage For="() => LoginInput.Role" class="text-danger" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label d-flex justify-content-between" for="LoginInput.Password">
+                                <span>Password</span>
+                                <a class="small text-decoration-none" href="/Account/ForgotPassword">Forgot password?</a>
+                            </label>
+                            <div class="input-group">
+                                <InputText type="@(ShowPassword ? "text" : "password")" @bind-Value="LoginInput.Password" id="LoginInput.Password" class="form-control" autocomplete="current-password" placeholder="Password" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="TogglePasswordVisibility">
+                                    <i class="bi @(ShowPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                                </button>
+                            </div>
+                            <ValidationMessage For="() => LoginInput.Password" class="text-danger" />
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg w-100" disabled="@IsSubmitting">
+                            @if (IsSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            Log in
+                        </button>
+                    </EditForm>
+
+                    <hr class="my-4" />
+                    <div class="text-center">
+                        <small>Don't have an account? <a href="/Account/Register">Register here</a></small>
                     </div>
                 </div>
             </div>
@@ -137,136 +81,65 @@
 </div>
 
 @code {
-    private string? errorMessage;
-    private EditContext editContext = default!;
+    private bool IsSubmitting;
+    private bool ShowPassword;
+    private string? ErrorMessage;
 
-    [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
+    
+// Login model initialized with property initializer
+public LoginRequest LoginInput { get; set; } = new();
 
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = default!;
+    private void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
 
-    [SupplyParameterFromQuery]
-    private string? ReturnUrl { get; set; }
-
-    [SupplyParameterFromQuery(Name = "portal")]
-    private string? PortalRole { get; set; }
-
-    private string RolePortalName => PortalRole switch
+    private async Task LoginUser()
     {
-        "admin" => "Admin Portal",
-        "department-head" => "Department Head Portal",
-        "educator" => "Faculty Portal",
-        "viewer" => "Student Portal",
-        _ => "Central Authentication"
-    };
-
-    private string RolePortalDescription => PortalRole switch
-    {
-        "admin" => "Secure portal for managing user accounts, system configuration, and monitoring audit logs.",
-        "department-head" => "Workspace for reviewing syllabus submissions and maintaining academic standards.",
-        "educator" => "Access point for uploading course syllabi, managing drafts, and submitting revisions.",
-        "viewer" => "Gateway to browse and download approved course syllabi for the academic year.",
-        _ => "Please select your designated portal to continue to your workspace."
-    };
-
-    private string PortalRoleName => PortalRole switch
-    {
-        "admin" => "System Administrator",
-        "department-head" => "Department Head",
-        "educator" => "Faculty",
-        "viewer" => "Student",
-        _ => "User"
-    };
-
-    protected override async Task OnInitializedAsync()
-    {
-        Input ??= new();
-        editContext = new EditContext(Input);
-
-        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        IsSubmitting = true;
+        ErrorMessage = null;
+        try
         {
-            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-        }
-    }
-
-    public async Task LoginUser()
-    {
-        if (!editContext.Validate())
-        {
-            return;
-        }
-
-        var institutionalId = Input.InstitutionalId.Trim();
-        var user = await UserManager.Users.FirstOrDefaultAsync(item => item.InstitutionalId == institutionalId);
-        if (user is null)
-        {
-            errorMessage = "Error: Invalid login attempt.";
-            return;
-        }
-
-        if (!MatchesPortalRole(user.Role))
-        {
-            errorMessage = "Error: Invalid login attempt.";
-            return;
-        }
-
-        if (user.AccountStatus != UserAccountStatus.Active)
-        {
-            errorMessage = user.AccountStatus switch
+            // Ensure LoginInput is instantiated (handles possible null from form post)
+            if (LoginInput == null)
+                LoginInput = new();
+            // Validate role selection (client‑side)
+            if (!Enum.IsDefined(typeof(UserRoleType), LoginInput.Role))
             {
-                UserAccountStatus.PendingApproval => "Error: Your account is pending administrator approval.",
-                UserAccountStatus.Rejected => "Error: Your account request was rejected.",
-                UserAccountStatus.Suspended => "Error: Your account is currently suspended.",
-                UserAccountStatus.Deleted => "Error: This account is no longer available.",
-                _ => "Error: Your account cannot be used right now."
-            };
+                ErrorMessage = "Please select a role.";
+                // Ensure the UI is no longer in submitting state
+                IsSubmitting = false;
+                return;
+            }
 
-            return;
+            var response = await Http.PostAsJsonAsync("/api/auth/login", LoginInput);
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/dashboard");
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                ErrorMessage = "Invalid School ID or password.";
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var err = await response.Content.ReadFromJsonAsync<RoleMismatchResponse>();
+                ErrorMessage = $"Your account is registered as {err?.CorrectRole}. Please select the correct role to continue.";
+            }
+            else
+            {
+                ErrorMessage = "An unexpected error occurred. Please try again.";
+            }
         }
-
-        var passwordCheck = await SignInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: false);
-        if (!passwordCheck.Succeeded)
+        catch
         {
-            errorMessage = "Error: Invalid login attempt.";
-            return;
+            ErrorMessage = "Unable to connect to the authentication server.";
         }
-
-        await SignInManager.SignInAsync(user, Input.RememberMe);
-        Logger.LogInformation("User logged in.");
-        RedirectManager.RedirectTo(DashboardRouteResolver.GetRoute(user.Role));
-    }
-
-    private bool MatchesPortalRole(UserRoleType role)
-    {
-        return PortalRole switch
+        finally
         {
-            "admin" => role == UserRoleType.Admin,
-            "department-head" => role == UserRoleType.DepartmentHead,
-            "educator" => role == UserRoleType.Educator,
-            "viewer" => role == UserRoleType.Viewer,
-            _ => false
-        };
+            IsSubmitting = false;
+        }
     }
 
-    private string GetRegisterUrl()
+    private class RoleMismatchResponse
     {
-        return string.IsNullOrWhiteSpace(PortalRole)
-            ? "Account/Register"
-            : $"Account/Register?role={Uri.EscapeDataString(PortalRole)}";
-    }
-
-    private sealed class InputModel
-    {
-        [Required]
-        [Display(Name = "Institutional ID")]
-        public string InstitutionalId { get; set; } = string.Empty;
-
-        [Required]
-        [DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
-
-        [Display(Name = "Remember me?")]
-        public bool RememberMe { get; set; }
+        public string CorrectRole { get; set; } = string.Empty;
     }
 }

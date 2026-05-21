@@ -11,7 +11,9 @@ using SRVS.Web.Components.Account;
 using SRVS.Web.Data;
 using SRVS.Infrastructure.Services;
 using SRVS.Application.Services;
-using SRVS.Web.Models;
+using SRVS.Web.Components.Admin.Models;
+using SRVS.Web.Endpoints;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +21,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SRVS API", Version = "v1" });
+});
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
@@ -53,6 +58,12 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
 
+builder.Services.AddScoped(sp => 
+{
+    var navManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(navManager.BaseUri) };
+});
+
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
@@ -85,162 +96,21 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapGet("/syllabi/{syllabusDocumentId:guid}/download", async (
-    Guid syllabusDocumentId,
-    HttpContext httpContext,
-    ISyllabusSearchService syllabusSearchService,
-    ISyllabusFileStorage syllabusFileStorage,
-    UserManager<ApplicationUser> userManager,
-    CancellationToken cancellationToken) =>
-{
-    var user = await userManager.GetUserAsync(httpContext.User);
-    if (user is null)
-    {
-        return Results.Unauthorized();
-    }
+app.MapHealthEndpoints();
+app.MapAuthEndpoints();
+app.MapSyllabusEndpoints();
+app.MapSubjectEndpoints();
+// app.MapProgramEndpoints();
+// app.MapDepartmentEndpoints();
+// app.MapUserEndpoints();
+// app.MapAcademicYearEndpoints();
+app.MapReportEndpoints();
 
-    var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.DepartmentId, user.Id, cancellationToken);
-    if (document is null)
-    {
-        return Results.NotFound();
-    }
 
-    if (!await syllabusFileStorage.ExistsAsync(document.CurrentStoragePath, cancellationToken))
-    {
-        return Results.NotFound();
-    }
-
-    await using var stream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
-    var contentType = Path.GetExtension(document.CurrentFileName).ToLowerInvariant() switch
-    {
-        ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".pdf" => "application/pdf",
-        _ => "application/octet-stream"
-    };
-
-    return Results.File(stream, contentType, document.CurrentFileName);
-}).RequireAuthorization();
-
-app.MapGet("/syllabi/versions/{versionId:guid}/download", async (
-    Guid versionId,
-    HttpContext httpContext,
-    ApplicationDbContext dbContext,
-    ISyllabusFileStorage syllabusFileStorage,
-    UserManager<ApplicationUser> userManager,
-    CancellationToken cancellationToken) =>
-{
-    var user = await userManager.GetUserAsync(httpContext.User);
-    if (user is null) return Results.Unauthorized();
-
-    var version = await dbContext.SyllabusVersions
-        .Include(v => v.SyllabusDocument)
-        .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
-        
-    if (version is null || version.SyllabusDocument is null) return Results.NotFound();
-
-    // Basic permission check - admin, dept head of same dept, or owner
-    var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.DepartmentId, user.Id);
-
-    if (!hasAccess) return Results.Forbid();
-
-    if (!await syllabusFileStorage.ExistsAsync(version.StoragePath, cancellationToken))
-    {
-        return Results.NotFound();
-    }
-
-    var stream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken);
-    var contentType = Path.GetExtension(version.FileName).ToLowerInvariant() switch
-    {
-        ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".pdf" => "application/pdf",
-        _ => "application/octet-stream"
-    };
-
-    return Results.File(stream, contentType, version.FileName);
-}).RequireAuthorization();
+app.MapRegistrationEndpoints();
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
-
-var api = app.MapGroup("/api");
-
-api.MapGet("/health", () => Results.Ok(new
-{
-    status = "ok",
-    timestampUtc = DateTimeOffset.UtcNow
-}))
-.AllowAnonymous()
-.WithName("GetHealth");
-
-api.MapGet("/syllabi/search", async (
-    string? term,
-    int maxResults,
-    HttpContext httpContext,
-    UserManager<ApplicationUser> userManager,
-    ISyllabusSearchService syllabusSearchService,
-    CancellationToken cancellationToken) =>
-{
-    var user = await userManager.GetUserAsync(httpContext.User);
-    if (user is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    var results = await syllabusSearchService.SearchAsync(new SyllabusSearchRequest(term, null, maxResults <= 0 ? 100 : maxResults), user.Role, user.DepartmentId, user.Id, cancellationToken);
-    return Results.Ok(results);
-})
-.RequireAuthorization()
-.WithName("SearchSyllabi");
-
-api.MapGet("/registrations", async (
-    string? search,
-    IRegistrationApprovalService registrationApprovalService,
-    CancellationToken cancellationToken) =>
-{
-    var queue = await registrationApprovalService.GetQueueAsync(search, cancellationToken);
-    return Results.Ok(queue);
-})
-.RequireAuthorization()
-.WithName("GetRegistrationQueue");
-
-api.MapPost("/registrations/{registrationRequestId:guid}/approve", async (
-    Guid registrationRequestId,
-    HttpContext httpContext,
-    UserManager<ApplicationUser> userManager,
-    IRegistrationApprovalService registrationApprovalService,
-    CancellationToken cancellationToken) =>
-{
-    var user = await userManager.GetUserAsync(httpContext.User);
-    if (user is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    await registrationApprovalService.ApproveAsync(registrationRequestId, user.Id, user.FullName, cancellationToken);
-    return Results.NoContent();
-})
-.RequireAuthorization()
-.WithName("ApproveRegistration");
-
-api.MapPost("/registrations/{registrationRequestId:guid}/reject", async (
-    Guid registrationRequestId,
-    RejectRegistrationRequest request,
-    HttpContext httpContext,
-    UserManager<ApplicationUser> userManager,
-    IRegistrationApprovalService registrationApprovalService,
-    CancellationToken cancellationToken) =>
-{
-    var user = await userManager.GetUserAsync(httpContext.User);
-    if (user is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    await registrationApprovalService.RejectAsync(registrationRequestId, user.Id, user.FullName, request.ReviewRemarks ?? string.Empty, cancellationToken);
-    return Results.NoContent();
-})
-.RequireAuthorization()
-.WithName("RejectRegistration");
 
 app.Run();
 
@@ -306,7 +176,7 @@ static async Task SeedSrvsDataAsync(WebApplication app)
 
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     var adminEmail = app.Configuration["SeedAdmin:Email"] ?? "admin@srvs.local";
-    var adminPassword = app.Configuration["SeedAdmin:Password"] ?? "Admin123!";
+    var adminPassword = app.Configuration["SeedAdmin:Password"] ?? "admin123";
 
     var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
     if (existingAdmin is null)
