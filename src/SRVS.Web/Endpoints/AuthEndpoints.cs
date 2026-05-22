@@ -45,6 +45,9 @@ public static class AuthEndpoints
                 user.LastLoginAtUtc = DateTimeOffset.UtcNow;
                 await userManager.UpdateAsync(user);
 
+                // Ensure the user is fully signed-in so the auth cookie is issued in this response.
+                await signInManager.SignInAsync(user, isPersistent: false);
+
                 var destination = user.Role == UserRoleType.Admin
                     ? "/admin/dashboard"
                     : SRVS.Application.Services.DashboardRouteResolver.GetRoute(user.Role);
