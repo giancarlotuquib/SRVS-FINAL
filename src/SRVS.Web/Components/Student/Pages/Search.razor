@@ -28,6 +28,19 @@
         </div>
     </div>
 
+    @if (IsReviewSubmissionsPage)
+    {
+        <div class="alert alert-warning border-warning mb-4">
+            <strong>Review Queue:</strong> This page is for <strong>accept/reject</strong> decisions on faculty submissions.
+        </div>
+    }
+    else if (IsDepartmentHeadRepositoryPage)
+    {
+        <div class="alert alert-info border-info mb-4">
+            <strong>Repository View:</strong> This page lists <strong>uploaded/approved syllabi</strong> and their faculty owners.
+        </div>
+    }
+
     <EditForm Model="search" OnValidSubmit="RunSearchAsync" class="row g-3 align-items-end mb-4">
         <DataAnnotationsValidator />
         <div class="col-lg-8">
@@ -60,11 +73,11 @@
                         <tr>
                             <th>Course</th>
                             <th>Title</th>
+                            <th>Faculty</th>
                             <th>Term</th>
-                            <th>Status</th>
-                            <th>Version</th>
-                            <th>Access</th>
-                            <th class="text-end">Action</th>
+                            <th>@(IsReviewSubmissionsPage ? "Review State" : "Status")</th>
+                            <th>@(IsDepartmentHeadRepositoryPage ? "Repository Scope" : "Version")</th>
+                            <th class="text-end">@(IsReviewSubmissionsPage ? "Review Action" : "Action")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,17 +85,32 @@
                         {
                             <tr>
                                 <td class="fw-semibold">@item.CourseCode</td>
-                                <td>
-                                    <div>@item.CourseTitle</div>
-                                    <div class="text-secondary small">@item.InstructorName</div>
-                                </td>
+                                <td>@item.CourseTitle</td>
+                                <td class="text-secondary small">@item.InstructorName</td>
                                 <td>@item.AcademicYear / @item.Semester</td>
-                                <td><span class="badge text-bg-light">@(item.Status == SyllabusStatus.Approved ? "Uploaded" : item.Status.ToString())</span></td>
-                                <td>V@item.CurrentVersionNumber</td>
-                                <td class="text-secondary small">@item.VisibilityLabel</td>
+                                <td>
+                                    @if (IsReviewSubmissionsPage)
+                                    {
+                                        <span class="badge text-bg-warning text-dark">Pending Department Review</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-light">@(item.Status == SyllabusStatus.Approved ? "Uploaded" : item.Status.ToString())</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (IsDepartmentHeadRepositoryPage)
+                                    {
+                                        <span class="text-secondary small">@item.VisibilityLabel</span>
+                                    }
+                                    else
+                                    {
+                                        <span>V@item.CurrentVersionNumber</span>
+                                    }
+                                </td>
                                 <td class="text-end text-nowrap">
                                     <a class="btn btn-primary btn-sm me-2" href="@GetActionHref(item)">@GetActionLabel(item.Status)</a>
-                                    @if (item.CanDownload)
+                                    @if (item.CanDownload && !IsReviewSubmissionsPage)
                                     {
                                         <a class="btn btn-outline-secondary btn-sm" href="/syllabi/@item.Id/download" target="_blank" title="Download Current Version"><i class="bi bi-download"></i></a>
                                     }
@@ -113,6 +141,8 @@
 
     private string PageTitle => IsReviewSubmissionsPage
         ? "Review Submissions"
+        : IsDepartmentHeadRepositoryPage
+            ? "Syllabus Repository"
         : IsFacultyDraftsPage
             ? "Syllabus Repository"
         : IsFacultyReviewPage
@@ -121,6 +151,8 @@
 
     private string Eyebrow => IsReviewSubmissionsPage
         ? "Department Head Review Queue"
+        : IsDepartmentHeadRepositoryPage
+            ? "Department Head Repository"
         : IsFacultyDraftsPage
             ? "Faculty Repository"
         : IsFacultyReviewPage
@@ -129,6 +161,8 @@
 
     private string Heading => IsReviewSubmissionsPage
         ? "Review submitted syllabi"
+        : IsDepartmentHeadRepositoryPage
+            ? "Browse uploaded syllabi"
         : IsFacultyDraftsPage
             ? "Review and submit syllabus drafts"
         : IsFacultyReviewPage
@@ -137,6 +171,8 @@
 
     private string Description => IsReviewSubmissionsPage
         ? "Review Computer Engineering syllabi submitted for department head approval."
+        : IsDepartmentHeadRepositoryPage
+            ? "View the repository of faculty-uploaded Computer Engineering syllabi."
         : IsFacultyDraftsPage
             ? "Open saved draft syllabi to preview the uploaded file, upload revisions, and submit them to the department head review queue."
         : IsFacultyReviewPage
@@ -190,6 +226,11 @@
             return SyllabusStatus.Submitted;
         }
 
+        if (IsDepartmentHeadRepositoryPage)
+        {
+            return SyllabusStatus.Approved;
+        }
+
         if (IsFacultyDraftsPage)
         {
             return SyllabusStatus.Draft;
@@ -202,7 +243,12 @@
     {
         if (IsReviewSubmissionsPage)
         {
-            return "Review Submission";
+            return "Accept / Reject";
+        }
+
+        if (IsDepartmentHeadRepositoryPage)
+        {
+            return "View Syllabus";
         }
 
         if ((currentUser?.Role == UserRoleType.Educator || currentUser?.Role == UserRoleType.DepartmentHead) && status is SyllabusStatus.Draft or SyllabusStatus.Rejected)

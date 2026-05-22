@@ -1026,6 +1026,7 @@
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore.Relational": "10.0.6",
+          "Microsoft.EntityFrameworkCore.SqlServer": "10.0.6",
           "SRVS.Application": "1.0.0",
           "SRVS.Domain": "1.0.0"
         },

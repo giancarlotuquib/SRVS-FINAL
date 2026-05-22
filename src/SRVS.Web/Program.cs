@@ -116,6 +116,7 @@ app.MapRazorComponents<App>()
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapSyllabusEndpoints();
+app.MapDeptHeadEndpoints();
 app.MapSubjectEndpoints();
 // app.MapProgramEndpoints();
 // app.MapDepartmentEndpoints();

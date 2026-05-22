@@ -18,6 +18,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
 	public DbSet<SyllabusVersion> SyllabusVersions => Set<SyllabusVersion>();
 
+	public DbSet<SyllabusAssignment> SyllabusAssignments => Set<SyllabusAssignment>();
+
 	public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
 	public DbSet<NotificationEntry> NotificationEntries => Set<NotificationEntry>();

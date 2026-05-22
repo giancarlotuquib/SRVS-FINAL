@@ -127,6 +127,7 @@
         UserRoleType.DepartmentHead =>
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.DepartmentHead), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Student Assignment", "/department-head/students", "nav-link__icon--users"),
             new("Upload Syllabus", "/department-head/upload", "nav-link__icon--upload"),
             new("Review Submissions", "/department-head/review-submissions", "nav-link__icon--review"),
             new("Syllabus Repository", "/department-head/syllabus-repository", "nav-link__icon--repository")
