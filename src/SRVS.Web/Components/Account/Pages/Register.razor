@@ -74,10 +74,10 @@
 
                         <div class="mb-4">
                             <label class="form-label" for="RegisterInput.Password">Password</label>
-                            <div class="input-group">
-                                <InputText type="@(showPassword ? "text" : "password")" @bind-Value="RegisterInput.Password" id="RegisterInput.Password" class="form-control" autocomplete="new-password" placeholder="Create a password" />
-                                <button type="button" class="btn btn-outline-secondary" @onclick="TogglePasswordVisibility">
-                                    <i class="bi @(showPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                            <div class="input-group password-input-group">
+                                <InputText type="password" @bind-Value="RegisterInput.Password" id="RegisterInput.Password" class="form-control" autocomplete="new-password" placeholder="Create a password" />
+                                <button type="button" class="btn btn-light password-toggle-btn" tabindex="-1">
+                                    <i class="bi bi-eye-fill"></i>
                                 </button>
                             </div>
                             <div class="form-text small text-muted mt-1">Must be at least 8 chars, 1 uppercase, 1 number, and 1 special character.</div>
@@ -85,10 +85,10 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="RegisterInput.ConfirmPassword">Confirm password</label>
-                            <div class="input-group">
-                                <InputText type="@(showConfirmPassword ? "text" : "password")" @bind-Value="RegisterInput.ConfirmPassword" id="RegisterInput.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Repeat password" />
-                                <button type="button" class="btn btn-outline-secondary" @onclick="ToggleConfirmPasswordVisibility">
-                                    <i class="bi @(showConfirmPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                            <div class="input-group password-input-group">
+                                <InputText type="password" @bind-Value="RegisterInput.ConfirmPassword" id="RegisterInput.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Repeat password" />
+                                <button type="button" class="btn btn-light password-toggle-btn" tabindex="-1">
+                                    <i class="bi bi-eye-fill"></i>
                                 </button>
                             </div>
                             <ValidationMessage For="() => RegisterInput.ConfirmPassword" class="text-danger small" />
@@ -114,8 +114,6 @@
 
 @code {
     private bool isSubmitting;
-    private bool showPassword;
-    private bool showConfirmPassword;
     private bool showSuccessMessage;
     private string? errorMessage;
 
@@ -126,9 +124,6 @@
     {
         RegisterInput ??= new RegisterRequest();
     }
-
-    private void TogglePasswordVisibility() => showPassword = !showPassword;
-    private void ToggleConfirmPasswordVisibility() => showConfirmPassword = !showConfirmPassword;
 
     private async Task RegisterUser()
     {

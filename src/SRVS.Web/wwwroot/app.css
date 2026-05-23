@@ -294,3 +294,38 @@ h1:focus {
         display: none;
     }
 }
+
+/* Password Toggle Button Styling */
+.password-input-group {
+    position: relative;
+}
+
+.password-toggle-btn {
+    border: 1px solid #dee2e6;
+    border-left: none;
+    background-color: #fff;
+    padding: 0.575rem 0.75rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.password-toggle-btn:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.password-toggle-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(20, 92, 61, 0.25);
+    border-color: #145c3d;
+    color: #145c3d;
+}
+
+.password-toggle-btn i {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+

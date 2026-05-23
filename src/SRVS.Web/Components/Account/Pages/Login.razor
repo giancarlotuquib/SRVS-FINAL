@@ -46,7 +46,12 @@
                                 <span>Password</span>
                                 <a class="small text-decoration-none" href="/Account/ForgotPassword">Forgot password?</a>
                             </label>
-                            <input type="password" name="Password" id="Password" class="form-control" autocomplete="current-password" placeholder="Password" value="@(loginModel.Password ?? string.Empty)" />
+                            <div class="input-group password-input-group">
+                                <input type="password" name="Password" id="Password" class="form-control" autocomplete="current-password" placeholder="Password" value="@(loginModel.Password ?? string.Empty)" />
+                                <button type="button" class="btn btn-light password-toggle-btn" tabindex="-1">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 my-3">Log In</button>
