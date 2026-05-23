@@ -2,12 +2,12 @@
 @attribute [Authorize(Roles = "Admin")]
 
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.EntityFrameworkCore
 @using SRVS.Domain.Entities
 @using SRVS.Domain.Enums
+@using SRVS.Web.Components.Admin.Services
 @using SRVS.Web.Data
 
-@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject UserActionService UserActionService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>User Management</PageTitle>
@@ -55,22 +55,31 @@
                                         Actions
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end @(openActionsUserId == user.Id ? "show" : "")">
-                                        <li>
-                                            <button class="dropdown-item" type="button" @onclick="() => OpenStatusConfirmation(user, UserAccountStatus.Active)" disabled="@IsActionDisabled(user, UserAccountStatus.Active)">
-                                                Activate
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" type="button" @onclick="() => OpenStatusConfirmation(user, UserAccountStatus.Suspended)" disabled="@IsActionDisabled(user, UserAccountStatus.Suspended)">
-                                                Deactivate
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider" /></li>
-                                        <li>
-                                            <button class="dropdown-item text-danger" type="button" @onclick="() => OpenDeleteConfirmation(user)" disabled="@IsActionDisabled(user, UserAccountStatus.Deleted)">
-                                                Delete
-                                            </button>
-                                        </li>
+                                        @if (user.AccountStatus != UserAccountStatus.Active)
+                                        {
+                                            <li>
+                                                <button class="dropdown-item" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Active)" disabled="@isProcessing">
+                                                    Activate
+                                                </button>
+                                            </li>
+                                        }
+                                        @if (user.AccountStatus == UserAccountStatus.Active)
+                                        {
+                                            <li>
+                                                <button class="dropdown-item" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Suspended)" disabled="@isProcessing">
+                                                    Deactivate
+                                                </button>
+                                            </li>
+                                        }
+                                        @if (user.AccountStatus != UserAccountStatus.Active || user.AccountStatus == UserAccountStatus.Active)
+                                        {
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li>
+                                                <button class="dropdown-item text-danger" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Deleted)" disabled="@isProcessing">
+                                                    Delete
+                                                </button>
+                                            </li>
+                                        }
                                     </ul>
                                 </div>
                             </td>
@@ -81,26 +90,13 @@
         </div>
     }
 
-    @if (showConfirmModal && pendingUser is not null)
-    {
-        <div class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.4);">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">@confirmTitle</h5>
-                        <button type="button" class="btn-close" @onclick="CloseConfirmation"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-0">@confirmMessage</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" @onclick="CloseConfirmation" disabled="@isProcessing">Cancel</button>
-                        <button class="btn @confirmButtonClass" @onclick="ApplyConfirmedActionAsync" disabled="@isProcessing">Confirm</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
+    <ConfirmationModal 
+        IsVisible="showConfirmModal" 
+        IsProcessing="isProcessing"
+        SelectedUser="pendingUser"
+        TargetStatus="pendingStatus ?? UserAccountStatus.Active"
+        OnCancel="CloseConfirmationAsync"
+        OnConfirm="ApplyConfirmedActionAsync" />
 </section>
 
 @code {
@@ -111,9 +107,6 @@
     private UserAccountStatus? pendingStatus;
     private string? openActionsUserId;
     private string successMessage = string.Empty;
-    private string confirmTitle = string.Empty;
-    private string confirmMessage = string.Empty;
-    private string confirmButtonClass = "btn-primary";
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,16 +118,7 @@
             return;
         }
 
-        await using var dbContext = await DbFactory.CreateDbContextAsync();
-        users = await dbContext.Users
-            .AsNoTracking()
-            .OrderBy(user => user.UserName)
-            .ToListAsync();
-    }
-
-    private static bool IsActionDisabled(ApplicationUser user, UserAccountStatus targetStatus)
-    {
-        return user.AccountStatus == targetStatus;
+        users = await UserActionService.GetAllUsersAsync();
     }
 
     private void ToggleActionsMenu(string userId)
@@ -142,45 +126,25 @@
         openActionsUserId = openActionsUserId == userId ? null : userId;
     }
 
-    private void OpenStatusConfirmation(ApplicationUser user, UserAccountStatus newStatus)
+    private void OpenConfirmation(ApplicationUser user, UserAccountStatus targetStatus)
     {
-        if (IsActionDisabled(user, newStatus) || isProcessing)
+        if (!UserActionService.IsActionAllowed(user, targetStatus) || isProcessing)
         {
             return;
         }
 
         pendingUser = user;
-        pendingStatus = newStatus;
+        pendingStatus = targetStatus;
         showConfirmModal = true;
         openActionsUserId = null;
-        confirmButtonClass = newStatus == UserAccountStatus.Active ? "btn-success" : "btn-warning";
-        confirmTitle = newStatus == UserAccountStatus.Active ? "Activate User" : "Deactivate User";
-        confirmMessage = newStatus == UserAccountStatus.Active
-            ? $"Activate user '{user.UserName}'? They will be able to sign in again."
-            : $"Deactivate user '{user.UserName}'? They will not be able to sign in.";
     }
 
-    private void OpenDeleteConfirmation(ApplicationUser user)
-    {
-        if (IsActionDisabled(user, UserAccountStatus.Deleted) || isProcessing)
-        {
-            return;
-        }
-
-        pendingUser = user;
-        pendingStatus = UserAccountStatus.Deleted;
-        showConfirmModal = true;
-    openActionsUserId = null;
-        confirmButtonClass = "btn-danger";
-        confirmTitle = "Delete User";
-        confirmMessage = $"Soft-delete user '{user.UserName}'? This sets status to Deleted for audit trail.";
-    }
-
-    private void CloseConfirmation()
+    private async Task CloseConfirmationAsync()
     {
         showConfirmModal = false;
         pendingUser = null;
         pendingStatus = null;
+        await Task.CompletedTask;
     }
 
     private async Task ApplyConfirmedActionAsync()
@@ -194,30 +158,25 @@
 
         try
         {
-            await using var dbContext = await DbFactory.CreateDbContextAsync();
-            var dbUser = await dbContext.Users.FirstOrDefaultAsync(item => item.Id == pendingUser.Id);
+            var updatedUser = await UserActionService.UpdateUserStatusAsync(pendingUser.Id, pendingStatus.Value);
 
-            if (dbUser is null)
+            if (updatedUser is null)
             {
-                CloseConfirmation();
+                await CloseConfirmationAsync();
                 return;
             }
 
-            dbUser.AccountStatus = pendingStatus.Value;
-            await dbContext.SaveChangesAsync();
+            users = await UserActionService.GetAllUsersAsync();
 
-            users = await dbContext.Users
-                .AsNoTracking()
-                .OrderBy(item => item.UserName)
-                .ToListAsync();
+            successMessage = pendingStatus.Value switch
+            {
+                UserAccountStatus.Deleted => $"User '{pendingUser.UserName}' was deleted and saved to the database.",
+                UserAccountStatus.Active => $"User '{pendingUser.UserName}' was activated and saved to the database.",
+                UserAccountStatus.Suspended => $"User '{pendingUser.UserName}' was deactivated and saved to the database.",
+                _ => $"User '{pendingUser.UserName}' status was updated."
+            };
 
-            successMessage = pendingStatus == UserAccountStatus.Deleted
-                ? $"User '{pendingUser.UserName}' was deleted and saved to the database."
-                : pendingStatus == UserAccountStatus.Active
-                    ? $"User '{pendingUser.UserName}' was activated and saved to the database."
-                    : $"User '{pendingUser.UserName}' was deactivated and saved to the database.";
-
-            CloseConfirmation();
+            await CloseConfirmationAsync();
         }
         finally
         {

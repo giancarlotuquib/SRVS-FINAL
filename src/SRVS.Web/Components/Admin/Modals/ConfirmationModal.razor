@@ -1,0 +1,90 @@
+@using SRVS.Domain.Enums
+@using SRVS.Web.Data
+
+@if (IsVisible)
+{
+    <div class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.4);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-bottom-0">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button" class="btn-close" @onclick="OnCancel" disabled="@IsProcessing"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <p class="mb-2"><strong>User:</strong> @SelectedUser?.UserName</p>
+                        <p class="mb-2"><strong>Email:</strong> @SelectedUser?.Email</p>
+                        <p class="mb-2"><strong>Institutional ID:</strong> @SelectedUser?.InstitutionalId</p>
+                        <p class="mb-0"><strong>Current Status:</strong> <span class="badge @GetCurrentStatusBadgeClass()">@SelectedUser?.AccountStatus</span></p>
+                    </div>
+                    <hr class="my-3" />
+                    <p class="mb-0">@Message</p>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="OnCancel" disabled="@IsProcessing">Cancel</button>
+                    <button type="button" class="btn @ConfirmButtonClass" @onclick="OnConfirm" disabled="@IsProcessing">
+                        @if (IsProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public bool IsProcessing { get; set; }
+
+    [Parameter]
+    public ApplicationUser? SelectedUser { get; set; }
+
+    [Parameter]
+    public UserAccountStatus TargetStatus { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    private string Title => TargetStatus switch
+    {
+        UserAccountStatus.Active => "Activate User",
+        UserAccountStatus.Suspended => "Deactivate User",
+        UserAccountStatus.Deleted => "Delete User",
+        _ => "Confirm Action"
+    };
+
+    private string Message => TargetStatus switch
+    {
+        UserAccountStatus.Active => $"Activate user '{SelectedUser?.UserName}'? They will be able to sign in again.",
+        UserAccountStatus.Suspended => $"Deactivate user '{SelectedUser?.UserName}'? They will not be able to sign in.",
+        UserAccountStatus.Deleted => $"Soft-delete user '{SelectedUser?.UserName}'? This sets status to Deleted for audit trail.",
+        _ => "Are you sure you want to proceed with this action?"
+    };
+
+    private string ConfirmButtonClass => TargetStatus switch
+    {
+        UserAccountStatus.Active => "btn-success",
+        UserAccountStatus.Suspended => "btn-warning",
+        UserAccountStatus.Deleted => "btn-danger",
+        _ => "btn-primary"
+    };
+
+    private string GetCurrentStatusBadgeClass() => SelectedUser?.AccountStatus switch
+    {
+        UserAccountStatus.Active => "text-bg-success",
+        UserAccountStatus.PendingApproval => "text-bg-warning text-dark",
+        UserAccountStatus.Suspended => "text-bg-secondary",
+        UserAccountStatus.Rejected => "text-bg-danger",
+        UserAccountStatus.Deleted => "text-bg-dark",
+        _ => "text-bg-secondary"
+    };
+}

@@ -8,6 +8,7 @@ using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Web.Components;
 using SRVS.Web.Components.Account;
+using SRVS.Web.Components.Admin.Services;
 using SRVS.Web.Data;
 using SRVS.Infrastructure.Services;
 using SRVS.Application.Services;
@@ -46,6 +47,7 @@ builder.Services.AddScoped<ISyllabusFileStorage, LocalSyllabusFileStorage>();
 builder.Services.AddScoped<ISyllabusWorkflowService, SyllabusWorkflowService>();
 builder.Services.AddScoped<IRegistrationApprovalService, RegistrationApprovalService>();
 builder.Services.AddScoped<ISyllabusSearchService, SyllabusSearchService>();
+builder.Services.AddScoped<UserActionService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
