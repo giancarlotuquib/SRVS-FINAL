@@ -45,7 +45,7 @@ public static class SyllabusEndpoints
                 return Results.NotFound();
             }
 
-            await using var stream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
+            var stream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
             var contentType = Path.GetExtension(document.CurrentFileName).ToLowerInvariant() switch
             {
                 ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
