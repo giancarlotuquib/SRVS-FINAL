@@ -86,11 +86,13 @@ public static class AdminEndpoints
         // Registration management endpoints
         adminGroup.MapGet("/registrations/pending", async (
             string? search,
-            IRegistrationApprovalService registrationApprovalService,
+            ApplicationDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var queue = await registrationApprovalService.GetQueueAsync(search, cancellationToken);
-            return Results.Ok(queue);
+            var registrations = await dbContext.RegistrationRequests
+                .Where(r => r.Status == RegistrationStatus.Pending)
+                .ToListAsync(cancellationToken);
+            return Results.Ok(registrations);
         })
         .WithName("GetPendingRegistrations");
 
@@ -110,8 +112,8 @@ public static class AdminEndpoints
                     r.Email,
                     r.FullName,
                     r.InstitutionalId,
-                    r.Role,
-                    r.RequestedAtUtc,
+                    r.RequestedRole,
+                    r.CreatedAtUtc,
                     r.Status
                 })
                 .ToListAsync();
@@ -124,14 +126,21 @@ public static class AdminEndpoints
             Guid id,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
-            IRegistrationApprovalService registrationApprovalService,
+            ApplicationDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
-            await registrationApprovalService.ApproveAsync(id, user.Id, user.FullName, cancellationToken);
+            var registration = await dbContext.RegistrationRequests.FindAsync(id, cancellationToken);
+            if (registration is null) return Results.NotFound();
+
+            registration.Status = RegistrationStatus.Approved;
+            registration.ReviewedByUserId = user.Id;
+            registration.ReviewedAtUtc = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             return Results.NoContent();
         })
         .WithName("ApproveRegistration");
@@ -141,14 +150,22 @@ public static class AdminEndpoints
             RejectRegistrationRequest request,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
-            IRegistrationApprovalService registrationApprovalService,
+            ApplicationDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
-            await registrationApprovalService.RejectAsync(id, user.Id, user.FullName, request.ReviewRemarks ?? string.Empty, cancellationToken);
+            var registration = await dbContext.RegistrationRequests.FindAsync(id, cancellationToken);
+            if (registration is null) return Results.NotFound();
+
+            registration.Status = RegistrationStatus.Rejected;
+            registration.ReviewRemarks = request.ReviewRemarks;
+            registration.ReviewedByUserId = user.Id;
+            registration.ReviewedAtUtc = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             return Results.NoContent();
         })
         .WithName("RejectRegistration");

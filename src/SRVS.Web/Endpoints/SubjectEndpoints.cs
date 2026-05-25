@@ -77,8 +77,9 @@ public static class CoursesEndpoints
             if (course is null) return Results.NotFound();
 
             var students = await db.SyllabusAssignments
-                .Where(a => a.Syllabus.CourseCode == course.Code && a.IsActive)
-                .Join(db.Users, a => a.StudentId, u => u.Id, (a, u) => new { u.Id, u.FullName, u.InstitutionalId, u.Email })
+                .Join(db.SyllabusDocuments, a => a.SyllabusId, s => s.Id, (a, s) => new { a, s })
+                .Where(x => x.s.CourseCode == course.Code && x.a.IsActive)
+                .Join(db.Users, x => x.a.StudentId, u => u.Id, (x, u) => new { u.Id, u.FullName, u.InstitutionalId, u.Email })
                 .Distinct()
                 .ToListAsync();
 

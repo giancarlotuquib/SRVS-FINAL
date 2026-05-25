@@ -271,7 +271,7 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId.ToString());
             if (student is null) return Results.NotFound();
             if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
 
@@ -318,7 +318,7 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId.ToString());
             if (student is null) return Results.NotFound();
             if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
 
@@ -326,7 +326,7 @@ public static class DeptHeadEndpoints
             if (course is null) return Results.NotFound();
 
             var assignment = await dbContext.SyllabusAssignments
-                .FirstOrDefaultAsync(a => a.StudentId == studentId && a.SyllabusId == courseId && a.IsActive);
+                .FirstOrDefaultAsync(a => a.StudentId == studentId.ToString() && a.SyllabusId == courseId && a.IsActive);
             if (assignment is null) return Results.NotFound();
 
             assignment.IsActive = false;
@@ -343,12 +343,12 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId.ToString());
             if (student is null) return Results.NotFound();
             if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
 
             var syllabi = await dbContext.SyllabusAssignments
-                .Where(a => a.StudentId == studentId && a.IsActive)
+                .Where(a => a.StudentId == studentId.ToString() && a.IsActive)
                 .Join(dbContext.SyllabusDocuments, a => a.SyllabusId, s => s.Id, (a, s) => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester })
                 .ToListAsync();
 

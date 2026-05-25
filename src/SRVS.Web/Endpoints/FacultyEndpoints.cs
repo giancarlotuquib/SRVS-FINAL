@@ -22,7 +22,7 @@ public static class FacultyEndpoints
 
             var syllabi = await dbContext.SyllabusDocuments
                 .Where(s => s.OwnerUserId == user.Id)
-                .Select(s => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester, s.CurrentVersionNumber, s.SubmittedAtUtc, s.WorkflowStatus })
+                .Select(s => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester, s.CurrentVersionNumber, s.SubmittedAtUtc, s.Status })
                 .ToListAsync();
 
             return Results.Ok(syllabi);
@@ -48,7 +48,7 @@ public static class FacultyEndpoints
                 .FirstOrDefaultAsync(s => s.Id == id && s.OwnerUserId == user.Id);
             if (syllabus is null) return Results.NotFound();
 
-            return Results.Ok(new { syllabus.Id, syllabus.CourseCode, syllabus.CourseTitle, syllabus.AcademicYear, syllabus.Semester, syllabus.CurrentVersionNumber, syllabus.WorkflowStatus });
+            return Results.Ok(new { syllabus.Id, syllabus.CourseCode, syllabus.CourseTitle, syllabus.AcademicYear, syllabus.Semester, syllabus.CurrentVersionNumber, syllabus.Status });
         });
 
         facultyGroup.MapPut("/syllabi/{id:guid}", async (Guid id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>

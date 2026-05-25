@@ -50,37 +50,22 @@
                                 <span class="badge @GetStatusBadgeClass(user.AccountStatus)">@user.AccountStatus</span>
                             </td>
                             <td class="text-nowrap">
-                                <div class="dropdown @(openActionsUserId == user.Id ? "show" : "")">
-                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" @onclick="() => ToggleActionsMenu(user.Id)" aria-expanded="@(openActionsUserId == user.Id)" disabled="@isProcessing">
-                                        Actions
+                                <div class="btn-group">
+                                    @if (user.AccountStatus != UserAccountStatus.Active)
+                                    {
+                                        <button class="btn btn-sm btn-success" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Active)" disabled="@isProcessing" title="Activate">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                    }
+                                    @if (user.AccountStatus == UserAccountStatus.Active)
+                                    {
+                                        <button class="btn btn-sm btn-warning" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Suspended)" disabled="@isProcessing" title="Deactivate">
+                                            <i class="bi bi-dash-circle"></i>
+                                        </button>
+                                    }
+                                    <button class="btn btn-sm btn-danger" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Deleted)" disabled="@isProcessing" title="Delete">
+                                        <i class="bi bi-trash"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end @(openActionsUserId == user.Id ? "show" : "")">
-                                        @if (user.AccountStatus != UserAccountStatus.Active)
-                                        {
-                                            <li>
-                                                <button class="dropdown-item" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Active)" disabled="@isProcessing">
-                                                    Activate
-                                                </button>
-                                            </li>
-                                        }
-                                        @if (user.AccountStatus == UserAccountStatus.Active)
-                                        {
-                                            <li>
-                                                <button class="dropdown-item" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Suspended)" disabled="@isProcessing">
-                                                    Deactivate
-                                                </button>
-                                            </li>
-                                        }
-                                        @if (user.AccountStatus != UserAccountStatus.Active || user.AccountStatus == UserAccountStatus.Active)
-                                        {
-                                            <li><hr class="dropdown-divider" /></li>
-                                            <li>
-                                                <button class="dropdown-item text-danger" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Deleted)" disabled="@isProcessing">
-                                                    Delete
-                                                </button>
-                                            </li>
-                                        }
-                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -105,7 +90,6 @@
     private bool showConfirmModal;
     private ApplicationUser? pendingUser;
     private UserAccountStatus? pendingStatus;
-    private string? openActionsUserId;
     private string successMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -121,14 +105,9 @@
         users = await UserActionService.GetAllUsersAsync();
     }
 
-    private void ToggleActionsMenu(string userId)
-    {
-        openActionsUserId = openActionsUserId == userId ? null : userId;
-    }
-
     private void OpenConfirmation(ApplicationUser user, UserAccountStatus targetStatus)
     {
-        if (!UserActionService.IsActionAllowed(user, targetStatus) || isProcessing)
+        if (isProcessing)
         {
             return;
         }
@@ -136,7 +115,6 @@
         pendingUser = user;
         pendingStatus = targetStatus;
         showConfirmModal = true;
-        openActionsUserId = null;
     }
 
     private async Task CloseConfirmationAsync()

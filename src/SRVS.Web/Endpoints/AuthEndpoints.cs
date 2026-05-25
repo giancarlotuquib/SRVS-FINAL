@@ -4,6 +4,7 @@ using SRVS.Application.Services;
 using SRVS.Web.Components.Account;
 using Microsoft.AspNetCore.Identity;
 using SRVS.Domain.Enums;
+using SRVS.Domain.Entities;
 using SRVS.Web.Data;
 using SyllabusRepository.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +65,7 @@ public static class AuthEndpoints
         }).DisableAntiforgery();
 
         // Register
-        authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager) =>
+        authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
             if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
             {
@@ -95,7 +96,25 @@ public static class AuthEndpoints
                 EmailConfirmed = true
             };
             var result = await userManager.CreateAsync(user, request.Password);
-            return result.Succeeded ? Results.Ok(new { message = "Account created successfully." }) : Results.BadRequest(result.Errors);
+            
+            if (result.Succeeded)
+            {
+                // Create RegistrationRequest for admin approval
+                var registrationRequest = new RegistrationRequest
+                {
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    InstitutionalId = user.InstitutionalId,
+                    RequestedRole = user.Role,
+                    Status = RegistrationStatus.Pending
+                };
+                dbContext.RegistrationRequests.Add(registrationRequest);
+                await dbContext.SaveChangesAsync();
+                
+                return Results.Ok(new { message = "Account created successfully." });
+            }
+            
+            return Results.BadRequest(result.Errors);
         });
 
 
@@ -160,7 +179,7 @@ public static class AuthEndpoints
         });
 
         // Forgot password placeholder
-        authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request) =>
+        authGroup.MapPost("/forgot-password", () =>
         {
             return Results.Ok(new { message = "Password reset link sent (placeholder)." });
         });

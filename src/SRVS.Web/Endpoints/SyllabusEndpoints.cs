@@ -152,14 +152,14 @@ public static class SyllabusEndpoints
 
             var versions = document.Versions
                 .OrderByDescending(v => v.VersionNumber)
-                .Select(v => new 
-                { 
-                    v.Id, 
-                    v.VersionNumber, 
-                    v.FileName, 
+                .Select(v => new
+                {
+                    v.Id,
+                    v.VersionNumber,
+                    v.FileName,
                     v.UploadedAtUtc,
-                    v.UploadedBy,
-                    v.ChangeSummary 
+                    v.UploadedByName,
+                    v.ChangeSummary
                 })
                 .ToList();
 
