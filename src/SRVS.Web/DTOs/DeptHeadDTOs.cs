@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SyllabusRepository.DTOs;
+namespace SRVS.Web.DTOs;
 
 public class StudentResponse
 {
@@ -24,6 +24,7 @@ public class SyllabusListResponse
     public string AcademicYear { get; set; } = string.Empty;
     public string Semester { get; set; } = string.Empty;
     public DateTimeOffset UploadedAt { get; set; }
+    public SRVS.Domain.Enums.SyllabusStatus Status { get; set; }
 }
 
 public class AssignRequest

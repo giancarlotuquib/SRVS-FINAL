@@ -1,0 +1,654 @@
+@page "/department-head/syllabi"
+@attribute [Authorize(Roles = "DepartmentHead")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using SRVS.Web.DTOs
+@using SRVS.Domain.Enums
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Syllabi Management</PageTitle>
+
+<section class="container py-4">
+    <h1 class="h3 mb-4">Syllabi Management</h1>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Review</h5>
+                    <p class="card-text">
+                        <span class="badge bg-primary fs-5">@pendingSyllabi.Count</span> syllabus(es) awaiting review
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Filter</h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <select class="form-select" style="width: auto;" @onchange="HandleStatusFilterChange">
+                            <option value="">All Statuses</option>
+                            <option value="0">Draft</option>
+                            <option value="1">Submitted</option>
+                            <option value="2">Approved</option>
+                            <option value="3">Rejected</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" @onclick="LoadAllSyllabiAsync">
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="syllabiTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab" @onclick="SwitchToPendingTab">
+                Pending Review
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-pane" type="button" role="tab" @onclick="SwitchToAllTab">
+                All Syllabi
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="syllabiTabsContent">
+        <div class="tab-pane fade show active" id="pending-pane" role="tabpanel">
+            @if (isPendingLoading)
+            {
+                <div class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (pendingSyllabi.Count == 0)
+            {
+                <div class="alert alert-info">
+                    No syllabi pending review at this time.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Title</th>
+                                <th>Faculty Name</th>
+                                <th>Academic Year</th>
+                                <th>Semester</th>
+                                <th>Submitted At</th>
+                                <th>Version</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var syllabus in pendingSyllabi)
+                            {
+                                <tr>
+                                    <td>@syllabus.CourseCode</td>
+                                    <td>@syllabus.CourseTitle</td>
+                                    <td>@syllabus.FacultyName</td>
+                                    <td>@syllabus.AcademicYear</td>
+                                    <td>@syllabus.Semester</td>
+                                    <td>@(syllabus.SubmittedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</td>
+                                    <td>@syllabus.CurrentVersionNumber</td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ViewSyllabus(syllabus)" title="View">
+                                                View
+                                            </button>
+                                            <button class="btn btn-outline-success" @onclick="() => OpenApproveDialog(syllabus)" title="Approve">
+                                                Approve
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => OpenRejectDialog(syllabus)" title="Reject">
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="all-pane" role="tabpanel">
+            @if (isAllLoading)
+            {
+                <div class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (allSyllabi.Count == 0)
+            {
+                <div class="alert alert-info">
+                    No syllabi found.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Title</th>
+                                <th>Faculty Name</th>
+                                <th>Academic Year</th>
+                                <th>Semester</th>
+                                <th>Uploaded At</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var syllabus in allSyllabi)
+                            {
+                                <tr>
+                                    <td>@syllabus.SubjectCode</td>
+                                    <td>@syllabus.SubjectTitle</td>
+                                    <td>@syllabus.FacultyName</td>
+                                    <td>@syllabus.AcademicYear</td>
+                                    <td>@syllabus.Semester</td>
+                                    <td>@syllabus.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(syllabus.Status)">@syllabus.Status</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ViewSyllabusFromAll(syllabus)" title="View">
+                                                View
+                                            </button>
+                                            @if (syllabus.Status == SyllabusStatus.Submitted)
+                                            {
+                                                <button class="btn btn-outline-success" @onclick="() => OpenApproveDialogFromAll(syllabus)" title="Approve">
+                                                    Approve
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => OpenRejectDialogFromAll(syllabus)" title="Reject">
+                                                    Reject
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- Approve Confirmation Modal -->
+@if (showApproveDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Approve Syllabus</h5>
+                    <button type="button" class="btn-close" @onclick="CloseApproveDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to approve this syllabus?</p>
+                    @if (selectedSyllabus != null)
+                    {
+                        <p><strong>@selectedSyllabus.CourseTitle</strong> by @selectedSyllabus.FacultyName</p>
+                    }
+                    <div class="mb-3">
+                        <label for="approveRemarks" class="form-label">Remarks (optional)</label>
+                        <input type="text" class="form-control" id="approveRemarks" @bind="approveRemarks" placeholder="Optional feedback for faculty">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseApproveDialog">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="ApproveSyllabus" disabled="@isProcessing">
+                        @(isProcessing ? "Processing..." : "Approve")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Reject Modal -->
+@if (showRejectDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reject Syllabus</h5>
+                    <button type="button" class="btn-close" @onclick="CloseRejectDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to reject this syllabus?</p>
+                    @if (selectedSyllabus != null)
+                    {
+                        <p><strong>@selectedSyllabus.CourseTitle</strong> by @selectedSyllabus.FacultyName</p>
+                    }
+                    <div class="mb-3">
+                        <label for="rejectRemarks" class="form-label">Remarks <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="rejectRemarks" @bind="rejectRemarks" rows="3" placeholder="Please provide reasons for rejection"></textarea>
+                        @if (string.IsNullOrWhiteSpace(rejectRemarks))
+                        {
+                            <small class="text-danger">Remarks are required for rejection.</small>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseRejectDialog">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="RejectSyllabus" disabled="@isProcessing || string.IsNullOrWhiteSpace(rejectRemarks)">
+                        @(isProcessing ? "Processing..." : "Reject")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- View Syllabus Slide-in Panel -->
+@if (showViewPanel)
+{
+    <div class="offcanvas offcanvas-end show" tabindex="-1" style="visibility: visible;">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Syllabus Details</h5>
+            <button type="button" class="btn-close" @onclick="CloseViewPanel"></button>
+        </div>
+        <div class="offcanvas-body">
+            @if (viewingSyllabus != null)
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Course Code</label>
+                    <p>@viewingSyllabus.CourseCode</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Course Title</label>
+                    <p>@viewingSyllabus.CourseTitle</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Faculty Name</label>
+                    <p>@viewingSyllabus.FacultyName</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Academic Year</label>
+                    <p>@viewingSyllabus.AcademicYear</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Semester</label>
+                    <p>@viewingSyllabus.Semester</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Version</label>
+                    <p>@viewingSyllabus.CurrentVersionNumber</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">File Name</label>
+                    <p>@viewingSyllabus.CurrentFileName</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Submitted At</label>
+                    <p>@(viewingSyllabus.SubmittedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</p>
+                </div>
+                <button class="btn btn-primary" @onclick="DownloadSyllabus">
+                    Download File
+                </button>
+            }
+        </div>
+    </div>
+    <div class="offcanvas-backdrop fade show" @onclick="CloseViewPanel"></div>
+}
+
+@code {
+    private List<SyllabusPendingResponse> pendingSyllabi = new();
+    private List<SyllabusListResponse> allSyllabi = new();
+    private bool isPendingLoading = true;
+    private bool isAllLoading = false;
+    private bool isProcessing = false;
+    private bool showApproveDialog = false;
+    private bool showRejectDialog = false;
+    private bool showViewPanel = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private string approveRemarks = string.Empty;
+    private string rejectRemarks = string.Empty;
+    private SyllabusPendingResponse? selectedSyllabus;
+    private SyllabusPendingResponse? viewingSyllabus;
+    private SyllabusListResponse? selectedSyllabusFromAll;
+    private SyllabusListResponse? viewingSyllabusFromAll;
+    private int? statusFilter = null;
+    private System.Timers.Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPendingSyllabiAsync();
+        SetupAutoRefresh();
+    }
+
+    private void SetupAutoRefresh()
+    {
+        refreshTimer = new System.Timers.Timer(30000); // 30 seconds
+        refreshTimer.Elapsed += async (sender, e) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadPendingSyllabiAsync();
+                StateHasChanged();
+            });
+        };
+        refreshTimer.Start();
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private async Task LoadPendingSyllabiAsync()
+    {
+        isPendingLoading = true;
+        try
+        {
+            var response = await Http.GetFromJsonAsync<dynamic>("/api/depthead/syllabi/pending");
+            if (response != null)
+            {
+                // Extract pending syllabi from the debug response
+                var pendingSyllabiData = response.GetProperty("PendingSyllabi");
+                pendingSyllabi = pendingSyllabiData.Deserialize<List<SyllabusPendingResponse>>() ?? new();
+                
+                // Log debug info
+                var deptId = response.GetProperty("DepartmentId").GetGuid();
+                var totalInSystem = response.GetProperty("TotalSyllabiInSystem").GetInt32();
+                var totalInDept = response.GetProperty("TotalSyllabiInDept").GetInt32();
+                var pendingCount = response.GetProperty("PendingCount").GetInt32();
+                
+                if (totalInSystem == 0)
+                {
+                    errorMessage = $"Debug: No syllabi found in the entire system. Faculty may not have uploaded any syllabi yet.";
+                }
+                else if (totalInDept == 0)
+                {
+                    errorMessage = $"Debug: Found {totalInSystem} syllabus(es) in the system, but none in department {deptId}. Department Head's DepartmentId may not match the syllabus DepartmentId.";
+                }
+                else if (pendingCount == 0)
+                {
+                    errorMessage = $"Debug: Found {totalInDept} syllabus(es) in department {deptId}, but none have Status=Submitted. Faculty may need to submit their syllabi for review.";
+                }
+                else
+                {
+                    successMessage = $"Debug: Found {pendingCount} pending syllabus(es) out of {totalInDept} total in department {deptId}.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading pending syllabi: {ex.Message}";
+        }
+        finally
+        {
+            isPendingLoading = false;
+        }
+    }
+
+    private async Task LoadAllSyllabiAsync()
+    {
+        isAllLoading = true;
+        try
+        {
+            var url = statusFilter.HasValue ? $"/api/depthead/syllabi?status={statusFilter.Value}" : "/api/depthead/syllabi";
+            allSyllabi = await Http.GetFromJsonAsync<List<SyllabusListResponse>>(url) ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading all syllabi: {ex.Message}";
+        }
+        finally
+        {
+            isAllLoading = false;
+        }
+    }
+
+    private void HandleStatusFilterChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value))
+        {
+            statusFilter = null;
+        }
+        else if (int.TryParse(value, out int status))
+        {
+            statusFilter = status;
+        }
+        _ = LoadAllSyllabiAsync();
+    }
+
+    private void SwitchToPendingTab()
+    {
+        _ = LoadPendingSyllabiAsync();
+    }
+
+    private void SwitchToAllTab()
+    {
+        _ = LoadAllSyllabiAsync();
+    }
+
+    private void ViewSyllabus(SyllabusPendingResponse syllabus)
+    {
+        viewingSyllabus = syllabus;
+        showViewPanel = true;
+    }
+
+    private void ViewSyllabusFromAll(SyllabusListResponse syllabus)
+    {
+        viewingSyllabusFromAll = syllabus;
+        // Convert to SyllabusPendingResponse for viewing
+        viewingSyllabus = new SyllabusPendingResponse
+        {
+            Id = syllabus.Id,
+            CourseCode = syllabus.SubjectCode,
+            CourseTitle = syllabus.SubjectTitle,
+            FacultyName = syllabus.FacultyName,
+            AcademicYear = syllabus.AcademicYear,
+            Semester = syllabus.Semester,
+            CurrentVersionNumber = 0,
+            CurrentFileName = "Unknown",
+            SubmittedAtUtc = syllabus.UploadedAt
+        };
+        showViewPanel = true;
+    }
+
+    private void CloseViewPanel()
+    {
+        showViewPanel = false;
+        viewingSyllabus = null;
+        viewingSyllabusFromAll = null;
+    }
+
+    private void DownloadSyllabus()
+    {
+        // TODO: Implement download functionality
+        successMessage = "Download functionality not yet implemented.";
+    }
+
+    private void OpenApproveDialog(SyllabusPendingResponse syllabus)
+    {
+        selectedSyllabus = syllabus;
+        approveRemarks = string.Empty;
+        showApproveDialog = true;
+    }
+
+    private void OpenApproveDialogFromAll(SyllabusListResponse syllabus)
+    {
+        selectedSyllabusFromAll = syllabus;
+        // Convert to SyllabusPendingResponse for approval
+        selectedSyllabus = new SyllabusPendingResponse
+        {
+            Id = syllabus.Id,
+            CourseCode = syllabus.SubjectCode,
+            CourseTitle = syllabus.SubjectTitle,
+            FacultyName = syllabus.FacultyName,
+            AcademicYear = syllabus.AcademicYear,
+            Semester = syllabus.Semester,
+            CurrentVersionNumber = 0,
+            CurrentFileName = "Unknown",
+            SubmittedAtUtc = syllabus.UploadedAt
+        };
+        approveRemarks = string.Empty;
+        showApproveDialog = true;
+    }
+
+    private void CloseApproveDialog()
+    {
+        showApproveDialog = false;
+        selectedSyllabus = null;
+        selectedSyllabusFromAll = null;
+        approveRemarks = string.Empty;
+    }
+
+    private async Task ApproveSyllabus()
+    {
+        if (selectedSyllabus == null) return;
+
+        isProcessing = true;
+        try
+        {
+            var request = new ReviewSyllabusRequest { Remarks = approveRemarks };
+            var response = await Http.PutAsJsonAsync($"/api/depthead/syllabi/{selectedSyllabus.Id}/approve", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = $"✓ Syllabus '{selectedSyllabus.CourseTitle}' approved successfully.";
+                await LoadPendingSyllabiAsync();
+                if (statusFilter.HasValue || allSyllabi.Count > 0)
+                {
+                    await LoadAllSyllabiAsync();
+                }
+                CloseApproveDialog();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error approving syllabus: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving syllabus: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void OpenRejectDialog(SyllabusPendingResponse syllabus)
+    {
+        selectedSyllabus = syllabus;
+        rejectRemarks = string.Empty;
+        showRejectDialog = true;
+    }
+
+    private void OpenRejectDialogFromAll(SyllabusListResponse syllabus)
+    {
+        selectedSyllabusFromAll = syllabus;
+        // Convert to SyllabusPendingResponse for rejection
+        selectedSyllabus = new SyllabusPendingResponse
+        {
+            Id = syllabus.Id,
+            CourseCode = syllabus.SubjectCode,
+            CourseTitle = syllabus.SubjectTitle,
+            FacultyName = syllabus.FacultyName,
+            AcademicYear = syllabus.AcademicYear,
+            Semester = syllabus.Semester,
+            CurrentVersionNumber = 0,
+            CurrentFileName = "Unknown",
+            SubmittedAtUtc = syllabus.UploadedAt
+        };
+        rejectRemarks = string.Empty;
+        showRejectDialog = true;
+    }
+
+    private void CloseRejectDialog()
+    {
+        showRejectDialog = false;
+        selectedSyllabus = null;
+        selectedSyllabusFromAll = null;
+        rejectRemarks = string.Empty;
+    }
+
+    private async Task RejectSyllabus()
+    {
+        if (selectedSyllabus == null || string.IsNullOrWhiteSpace(rejectRemarks)) return;
+
+        isProcessing = true;
+        try
+        {
+            var request = new ReviewSyllabusRequest { Remarks = rejectRemarks };
+            var response = await Http.PutAsJsonAsync($"/api/depthead/syllabi/{selectedSyllabus.Id}/reject", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = $"✓ Syllabus '{selectedSyllabus.CourseTitle}' rejected successfully.";
+                await LoadPendingSyllabiAsync();
+                if (statusFilter.HasValue || allSyllabi.Count > 0)
+                {
+                    await LoadAllSyllabiAsync();
+                }
+                CloseRejectDialog();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error rejecting syllabus: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error rejecting syllabus: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string GetStatusBadgeClass(SyllabusStatus status) => status switch
+    {
+        SyllabusStatus.Draft => "bg-secondary",
+        SyllabusStatus.Submitted => "bg-primary",
+        SyllabusStatus.Approved => "bg-success",
+        SyllabusStatus.Rejected => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

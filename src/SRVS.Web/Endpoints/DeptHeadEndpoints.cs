@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SRVS.Domain.Entities;
-using SyllabusRepository.DTOs;
+using SRVS.Web.DTOs;
 using SRVS.Web.Data;
 
 namespace SRVS.Web.Endpoints;
@@ -75,7 +75,8 @@ public static class DeptHeadEndpoints
                     FacultyName = dbContext.Users.Where(u => u.Id == s.OwnerUserId).Select(u => u.FullName).FirstOrDefault() ?? s.InstructorName,
                     AcademicYear = s.AcademicYear,
                     Semester = s.Semester,
-                    UploadedAt = s.SubmittedAtUtc ?? DateTimeOffset.MinValue
+                    UploadedAt = s.SubmittedAtUtc ?? DateTimeOffset.MinValue,
+                    Status = s.Status
                 })
                 .ToListAsync();
 
@@ -89,6 +90,18 @@ public static class DeptHeadEndpoints
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
             var deptId = user.DepartmentId;
+
+            // Debug: Get all syllabi in the system
+            var allSyllabi = await dbContext.SyllabusDocuments
+                .Select(s => new { s.Id, s.CourseCode, s.Status, s.OwnerUserId, s.DepartmentId })
+                .ToListAsync();
+
+            // Debug: Get syllabi in the specific department
+            var allSyllabiInDept = await dbContext.SyllabusDocuments
+                .Where(s => s.DepartmentId == deptId)
+                .Select(s => new { s.Id, s.CourseCode, s.Status, s.OwnerUserId })
+                .ToListAsync();
+
             var pendingSyllabi = await dbContext.SyllabusDocuments
                 .Where(s => s.DepartmentId == deptId && s.Status == SRVS.Domain.Enums.SyllabusStatus.Submitted && !string.IsNullOrEmpty(s.OwnerUserId))
                 .OrderByDescending(s => s.SubmittedAtUtc ?? s.UpdatedAtUtc)
@@ -97,7 +110,7 @@ public static class DeptHeadEndpoints
                     Id = s.Id,
                     CourseCode = s.CourseCode,
                     CourseTitle = s.CourseTitle,
-                    FacultyName = s.InstructorName,
+                    FacultyName = dbContext.Users.Where(u => u.Id == s.OwnerUserId).Select(u => u.FullName).FirstOrDefault() ?? s.InstructorName,
                     AcademicYear = s.AcademicYear,
                     Semester = s.Semester,
                     CurrentVersionNumber = s.CurrentVersionNumber,
@@ -106,7 +119,15 @@ public static class DeptHeadEndpoints
                 })
                 .ToListAsync();
 
-            return Results.Ok(pendingSyllabi);
+            return Results.Ok(new { 
+                DepartmentId = deptId,
+                TotalSyllabiInSystem = allSyllabi.Count,
+                AllSyllabiInSystem = allSyllabi,
+                TotalSyllabiInDept = allSyllabiInDept.Count,
+                AllSyllabiInDept = allSyllabiInDept,
+                PendingCount = pendingSyllabi.Count,
+                PendingSyllabi = pendingSyllabi
+            });
         });
 
         group.MapPut("/syllabi/{syllabusId:guid}/approve", async (Guid syllabusId, ReviewSyllabusRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
@@ -184,6 +205,8 @@ public static class DeptHeadEndpoints
                 throw;
             }
         });
+
+        group.MapPost("/assign", async (AssignRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
