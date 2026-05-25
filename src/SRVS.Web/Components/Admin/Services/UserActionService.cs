@@ -40,15 +40,16 @@ public class UserActionService
     }
 
     /// <summary>
-    /// Gets all users ordered by username.
+    /// Gets all users excluding pending approval users, ordered by username.
     /// </summary>
-    /// <returns>A list of all users</returns>
+    /// <returns>A list of users excluding pending approval</returns>
     public async Task<List<ApplicationUser>> GetAllUsersAsync()
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
 
         return await dbContext.Users
             .AsNoTracking()
+            .Where(u => u.AccountStatus != UserAccountStatus.PendingApproval)
             .OrderBy(u => u.UserName)
             .ToListAsync();
     }

@@ -127,21 +127,6 @@ public static class AuthEndpoints
         });
                 
 
-        // Debug endpoint to check admin existence
-        authGroup.MapGet("/debug/admin", async (UserManager<ApplicationUser> userManager) =>
-        {
-            var admin = await userManager.FindByEmailAsync("admin@srvs.local");
-            if (admin == null) return Results.NotFound("Admin user not found.");
-            return Results.Ok(new { admin.InstitutionalId, admin.Email, admin.Role, admin.AccountStatus });
-        });
-
-        // Debug endpoint to list all users
-        authGroup.MapGet("/debug/users", async (UserManager<ApplicationUser> userManager) =>
-        {
-            var users = await userManager.Users.Select(u => new { u.Id, u.Email, u.InstitutionalId, u.Role, u.AccountStatus }).ToListAsync();
-            return Results.Ok(users);
-        });
-
         // Reset password custom logic
         authGroup.MapPost("/reset-password", async (ResetPasswordRequest request, UserManager<ApplicationUser> userManager) =>
         {
@@ -173,5 +158,25 @@ public static class AuthEndpoints
         {
             return Results.Ok();
         });
+
+        // Forgot password placeholder
+        authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request) =>
+        {
+            return Results.Ok(new { message = "Password reset link sent (placeholder)." });
+        });
+
+        // Validate token placeholder
+        authGroup.MapGet("/validate-token", (HttpContext httpContext) =>
+        {
+            return Results.Ok(new { valid = httpContext.User.Identity?.IsAuthenticated ?? false });
+        });
+
+        // Get current user (me)
+        authGroup.MapGet("/me", async (HttpContext httpContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            return Results.Ok(new { user.Id, user.Email, user.FullName, user.InstitutionalId, user.Role, user.AccountStatus });
+        }).RequireAuthorization();
     }
 }

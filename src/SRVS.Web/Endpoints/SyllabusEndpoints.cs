@@ -45,7 +45,12 @@ public static class SyllabusEndpoints
                 return Results.NotFound();
             }
 
-            var stream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
+            // Read file into memory to prevent disposal issues
+            using var fileStream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
+
             var contentType = Path.GetExtension(document.CurrentFileName).ToLowerInvariant() switch
             {
                 ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -53,7 +58,7 @@ public static class SyllabusEndpoints
                 _ => "application/octet-stream"
             };
 
-            return Results.File(stream, contentType, document.CurrentFileName);
+            return Results.File(memoryStream, contentType, document.CurrentFileName);
         })
         .WithName("DownloadSyllabus");
 
@@ -84,7 +89,12 @@ public static class SyllabusEndpoints
                 return Results.NotFound();
             }
 
-            var stream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken);
+            // Read file into memory to prevent disposal issues
+            using var fileStream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken);
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
+
             var contentType = Path.GetExtension(version.FileName).ToLowerInvariant() switch
             {
                 ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -92,7 +102,7 @@ public static class SyllabusEndpoints
                 _ => "application/octet-stream"
             };
 
-            return Results.File(stream, contentType, version.FileName);
+            return Results.File(memoryStream, contentType, version.FileName);
         })
         .WithName("DownloadSyllabusVersion");
 
@@ -119,6 +129,43 @@ public static class SyllabusEndpoints
             return Results.Ok(results);
         })
         .WithName("SearchSyllabi");
+
+        // Get syllabus versions
+        api.MapGet("/{syllabusDocumentId:guid}/versions", async (
+            Guid syllabusDocumentId,
+            HttpContext httpContext,
+            ApplicationDbContext dbContext,
+            UserManager<ApplicationUser> userManager,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+
+            var document = await dbContext.SyllabusDocuments
+                .Include(d => d.Versions)
+                .FirstOrDefaultAsync(d => d.Id == syllabusDocumentId, cancellationToken);
+            
+            if (document is null) return Results.NotFound();
+
+            var hasAccess = SyllabusAccessPolicy.CanDownload(document, user.Role, user.DepartmentId, user.Id);
+            if (!hasAccess) return Results.Forbid();
+
+            var versions = document.Versions
+                .OrderByDescending(v => v.VersionNumber)
+                .Select(v => new 
+                { 
+                    v.Id, 
+                    v.VersionNumber, 
+                    v.FileName, 
+                    v.UploadedAtUtc,
+                    v.UploadedBy,
+                    v.ChangeSummary 
+                })
+                .ToList();
+
+            return Results.Ok(versions);
+        })
+        .WithName("GetSyllabusVersions");
 
         return app;
     }

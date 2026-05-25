@@ -28,19 +28,6 @@
         </div>
     </div>
 
-    @if (IsReviewSubmissionsPage)
-    {
-        <div class="alert alert-warning border-warning mb-4">
-            <strong>Review Queue:</strong> This page is for <strong>accept/reject</strong> decisions on faculty submissions.
-        </div>
-    }
-    else if (IsDepartmentHeadRepositoryPage)
-    {
-        <div class="alert alert-info border-info mb-4">
-            <strong>Repository View:</strong> This page lists <strong>uploaded/approved syllabi</strong> and their faculty owners.
-        </div>
-    }
-
     <EditForm Model="search" OnValidSubmit="RunSearchAsync" class="row g-3 align-items-end mb-4">
         <DataAnnotationsValidator />
         <div class="col-lg-8">
@@ -59,10 +46,8 @@
     }
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Results</div><div class="display-6 fw-bold">@results.TotalCount</div></div></div></div>
-        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Visible</div><div class="display-6 fw-bold">@results.Items.Count</div></div></div></div>
-        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Your Role</div><div class="display-6 fw-bold">@roleLabel</div></div></div></div>
-        <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Program</div><div class="display-6 fw-bold">CE Only</div></div></div></div>
+        <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">@(IsReviewSubmissionsPage ? "Total Submissions" : "Total Syllabus")</div><div class="display-6 fw-bold">@results.TotalCount</div></div></div></div>
+        <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-secondary small text-uppercase">Your Role</div><div class="display-6 fw-bold">@roleLabel</div></div></div></div>
     </div>
 
     <div class="card border-0 shadow-sm">
@@ -110,7 +95,7 @@
                                 </td>
                                 <td class="text-end text-nowrap">
                                     <a class="btn btn-primary btn-sm me-2" href="@GetActionHref(item)">@GetActionLabel(item.Status)</a>
-                                    @if (item.CanDownload && !IsReviewSubmissionsPage)
+                                    @if (item.CanDownload && !IsReviewSubmissionsPage && currentUser?.Role == UserRoleType.DepartmentHead)
                                     {
                                         <a class="btn btn-outline-secondary btn-sm" href="/syllabi/@item.Id/download" target="_blank" title="Download Current Version"><i class="bi bi-download"></i></a>
                                     }

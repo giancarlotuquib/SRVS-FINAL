@@ -48,7 +48,7 @@
                 </ol>
             </nav>
             <h1 class="h3 mb-0">@document.CourseTitle</h1>
-            <p class="text-secondary mb-0">@document.Department?.Name | @document.AcademicYear - @document.Semester</p>
+            <p class="text-secondary mb-0">@document.AcademicYear - @document.Semester</p>
         </div>
         <div class="d-flex gap-2 align-items-center">
             <span class="badge @GetStatusBadgeClass(document.Status) fs-6 px-3 py-2">Status: @document.Status</span>
@@ -89,9 +89,12 @@
                     <h5 class="mb-0 text-primary">
                         <i class="bi bi-file-earmark-pdf me-2"></i>Current Active Version (V@(document.CurrentVersionNumber))
                     </h5>
-                    <a href="/syllabi/@document.Id/download" class="btn btn-sm btn-outline-secondary" target="_blank">
-                        <i class="bi bi-download me-1"></i> Download
-                    </a>
+                    @if (isDepartmentHead)
+                    {
+                        <a href="/syllabi/@document.Id/download" class="btn btn-sm btn-outline-secondary" target="_blank">
+                            <i class="bi bi-download me-1"></i> Download
+                        </a>
+                    }
                 </div>
                 <div class="card-body p-0 flex-grow-1 position-relative" style="min-height: 500px;">
                     @if (document.CurrentFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
@@ -105,7 +108,10 @@
                                 <i class="bi bi-file-earmark-word display-1 text-primary mb-3"></i>
                                 <h4>Word Document</h4>
                                 <p class="text-secondary">This file format cannot be previewed in the browser.</p>
-                                <a href="/syllabi/@document.Id/download" class="btn btn-primary mt-2">Download to View</a>
+                                @if (isDepartmentHead)
+                                {
+                                    <a href="/syllabi/@document.Id/download" class="btn btn-primary mt-2">Download to View</a>
+                                }
                             </div>
                         </div>
                     }
@@ -124,9 +130,12 @@
                             <i class="bi bi-clock-history me-2"></i>Historical Version (V@(compVersion?.VersionNumber))
                         </h5>
                         <div>
-                            <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
-                                <i class="bi bi-download"></i>
-                            </a>
+                            @if (isDepartmentHead)
+                            {
+                                <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            }
                             <button class="btn btn-sm btn-outline-danger" @onclick="CloseComparison">
                                 <i class="bi bi-x-lg"></i>
                             </button>
@@ -196,9 +205,12 @@
                                     }
 
                                     <div class="d-flex gap-2 mt-3">
-                                        <a href="/syllabi/versions/@version.Id/download" class="btn btn-sm btn-outline-secondary" title="Download">
-                                            <i class="bi bi-download"></i>
-                                        </a>
+                                        @if (isDepartmentHead)
+                                        {
+                                            <a href="/syllabi/versions/@version.Id/download" class="btn btn-sm btn-outline-secondary" title="Download">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                        }
                                         
                                         @if (version.VersionNumber != document.CurrentVersionNumber && (isDepartmentHead || isOwner))
                                         {

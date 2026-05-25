@@ -24,6 +24,7 @@ public class LocalSyllabusFileStorage(IHostEnvironment hostEnvironment) : ISylla
     public Task<Stream> OpenReadAsync(string storagePath, CancellationToken cancellationToken = default)
     {
         Stream stream = File.OpenRead(storagePath);
+        // Return the stream without disposing it - Results.File will handle disposal
         return Task.FromResult(stream);
     }
 

@@ -25,6 +25,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "SRVS API", Version = "v1" });
+    c.DocInclusionPredicate((docName, apiDesc) =>
+        apiDesc.RelativePath != null &&
+        apiDesc.RelativePath.StartsWith("api/"));
 });
 
 builder.Services.AddCascadingAuthenticationState();
@@ -117,17 +120,17 @@ app.MapRazorComponents<App>()
 
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
+app.MapAdminEndpoints();
 app.MapSyllabusEndpoints();
 app.MapDeptHeadEndpoints();
-app.MapSubjectEndpoints();
+app.MapCoursesEndpoints();
+app.MapFacultyEndpoints();
+app.MapStudentEndpoints();
 // app.MapProgramEndpoints();
 // app.MapDepartmentEndpoints();
 // app.MapUserEndpoints();
 // app.MapAcademicYearEndpoints();
 app.MapReportEndpoints();
-
-
-app.MapRegistrationEndpoints();
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();

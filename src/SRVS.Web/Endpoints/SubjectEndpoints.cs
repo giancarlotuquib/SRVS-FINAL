@@ -1,60 +1,88 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using SRVS.Web.Data; // ApplicationDbContext resides here
+using SRVS.Web.Data;
 using Microsoft.AspNetCore.Identity;
 using SRVS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace SRVS.Web.Endpoints;
 
-public static class SubjectEndpoints
+public static class CoursesEndpoints
 {
-    public static void MapSubjectEndpoints(this WebApplication app)
+    public static void MapCoursesEndpoints(this WebApplication app)
     {
-        var subjectGroup = app.MapGroup("/api/subject").WithTags("Subject");
+        var coursesGroup = app.MapGroup("/api/courses").WithTags("Courses");
 
-        // GET all subjects
-        subjectGroup.MapGet("/", async (ApplicationDbContext db) =>
+        // GET all courses
+        coursesGroup.MapGet("/", async (ApplicationDbContext db) =>
         {
-            var subjects = await db.Set<SRVS.Domain.Entities.Subject>().ToListAsync();
-            return Results.Ok(subjects);
-        }).WithName("GetAllSubjects");
+            var courses = await db.Set<SRVS.Domain.Entities.Subject>().ToListAsync();
+            return Results.Ok(courses);
+        }).WithName("GetAllCourses");
 
-        // GET subject by id
-        subjectGroup.MapGet("/{id}", async (int id, ApplicationDbContext db) =>
+        // GET course by id
+        coursesGroup.MapGet("/{id}", async (int id, ApplicationDbContext db) =>
         {
-            var subj = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
-            return subj is null ? Results.NotFound() : Results.Ok(subj);
-        }).WithName("GetSubjectById");
+            var course = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
+            return course is null ? Results.NotFound() : Results.Ok(course);
+        }).WithName("GetCourseById");
 
-        // POST create subject (placeholder)
-        subjectGroup.MapPost("/", async (SRVS.Domain.Entities.Subject subject, ApplicationDbContext db) =>
+        // POST create course (placeholder)
+        coursesGroup.MapPost("/", async (SRVS.Domain.Entities.Subject course, ApplicationDbContext db) =>
         {
-            db.Add(subject);
+            db.Add(course);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/subject/{subject.Id}", subject);
-        }).WithName("CreateSubject");
+            return Results.Created($"/api/courses/{course.Id}", course);
+        }).WithName("CreateCourse");
 
-        // PUT update subject
-        subjectGroup.MapPut("/{id}", async (int id, SRVS.Domain.Entities.Subject updated, ApplicationDbContext db) =>
+        // PUT update course
+        coursesGroup.MapPut("/{id}", async (int id, SRVS.Domain.Entities.Subject updated, ApplicationDbContext db) =>
         {
             var existing = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
             if (existing is null) return Results.NotFound();
-            // Simple property copy (customize as needed)
             existing.Name = updated.Name;
             existing.Code = updated.Code;
             await db.SaveChangesAsync();
             return Results.NoContent();
-        }).WithName("UpdateSubject");
+        }).WithName("UpdateCourse");
 
-        // DELETE subject
-        subjectGroup.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
+        // DELETE course
+        coursesGroup.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
         {
             var existing = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
             if (existing is null) return Results.NotFound();
             db.Remove(existing);
             await db.SaveChangesAsync();
             return Results.NoContent();
-        }).WithName("DeleteSubject");
+        }).WithName("DeleteCourse");
+
+        // GET course syllabi
+        coursesGroup.MapGet("/{id}/syllabi", async (int id, ApplicationDbContext db) =>
+        {
+            var course = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
+            if (course is null) return Results.NotFound();
+
+            var syllabi = await db.SyllabusDocuments
+                .Where(s => s.CourseCode == course.Code)
+                .Select(s => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester })
+                .ToListAsync();
+
+            return Results.Ok(syllabi);
+        }).WithName("GetCourseSyllabi");
+
+        // GET course students
+        coursesGroup.MapGet("/{id}/students", async (int id, ApplicationDbContext db) =>
+        {
+            var course = await db.Set<SRVS.Domain.Entities.Subject>().FindAsync(id);
+            if (course is null) return Results.NotFound();
+
+            var students = await db.SyllabusAssignments
+                .Where(a => a.Syllabus.CourseCode == course.Code && a.IsActive)
+                .Join(db.Users, a => a.StudentId, u => u.Id, (a, u) => new { u.Id, u.FullName, u.InstitutionalId, u.Email })
+                .Distinct()
+                .ToListAsync();
+
+            return Results.Ok(students);
+        }).WithName("GetCourseStudents");
     }
 }

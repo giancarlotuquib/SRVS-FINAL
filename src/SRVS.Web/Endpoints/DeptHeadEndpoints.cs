@@ -230,43 +230,129 @@ public static class DeptHeadEndpoints
             return Results.Ok();
         });
 
-        // User management for DeptHead: deactivate / delete students in their department
-        group.MapPost("/user/{id}/deactivate", async (string id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        // Courses endpoints
+        group.MapGet("/courses", async (HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var target = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (target is null) return Results.NotFound();
-            if (target.DepartmentId != user.DepartmentId) return Results.Forbid();
+            var deptId = user.DepartmentId;
+            var courses = await dbContext.CourseAssignments
+                .Where(c => c.DepartmentId == deptId && c.IsActive)
+                .Select(c => new { c.Id, c.CourseCode, c.CourseTitle, c.InstructorName })
+                .ToListAsync();
 
-            // Only allow changing students
-            if (target.Role != SRVS.Domain.Enums.UserRoleType.Viewer) return Results.BadRequest(new { error = "Can only manage student accounts." });
+            return Results.Ok(courses);
+        });
 
-            target.AccountStatus = SRVS.Domain.Enums.UserAccountStatus.Suspended;
+        group.MapGet("/courses/{courseId:guid}/syllabi", async (Guid courseId, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+
+            var course = await dbContext.CourseAssignments.FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course is null) return Results.NotFound();
+            if (course.DepartmentId != user.DepartmentId) return Results.Forbid();
+
+            var syllabi = await dbContext.SyllabusDocuments
+                .Where(s => s.CourseCode == course.CourseCode && s.DepartmentId == user.DepartmentId)
+                .Select(s => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester, s.SubmittedAtUtc })
+                .ToListAsync();
+
+            return Results.Ok(syllabi);
+        });
+
+        // Student course management
+        group.MapPost("/students/{studentId:guid}/courses", async (Guid studentId, AssignRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student is null) return Results.NotFound();
+            if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
+
+            var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
+            if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
+            if (syllabus.DepartmentId != user.DepartmentId) return Results.Forbid();
+
+            using var tx = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var existing = await dbContext.SyllabusAssignments.Where(a => a.StudentId == student.Id && a.IsActive).ToListAsync();
+                foreach (var e in existing)
+                {
+                    e.IsActive = false;
+                    e.DeletedAt = DateTimeOffset.UtcNow;
+                    dbContext.SyllabusAssignments.Update(e);
+                }
+
+                var assignment = new SyllabusAssignment
+                {
+                    StudentId = student.Id,
+                    SyllabusId = syllabus.Id,
+                    AssignedBy = user.Id,
+                    AssignedAt = DateTimeOffset.UtcNow,
+                    IsActive = true
+                };
+                dbContext.SyllabusAssignments.Add(assignment);
+
+                await dbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Results.Ok(new { message = "Course assigned successfully." });
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+        });
+
+        group.MapDelete("/students/{studentId:guid}/courses/{courseId:guid}", async (Guid studentId, Guid courseId, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student is null) return Results.NotFound();
+            if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
+
+            var course = await dbContext.CourseAssignments.FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course is null) return Results.NotFound();
+
+            var assignment = await dbContext.SyllabusAssignments
+                .FirstOrDefaultAsync(a => a.StudentId == studentId && a.SyllabusId == courseId && a.IsActive);
+            if (assignment is null) return Results.NotFound();
+
+            assignment.IsActive = false;
+            assignment.DeletedAt = DateTimeOffset.UtcNow;
+            dbContext.SyllabusAssignments.Update(assignment);
             await dbContext.SaveChangesAsync();
 
             return Results.Ok();
         });
 
-        group.MapDelete("/user/{id}", async (string id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        group.MapGet("/students/{studentId:guid}/syllabi", async (Guid studentId, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var target = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (target is null) return Results.NotFound();
-            if (target.DepartmentId != user.DepartmentId) return Results.Forbid();
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student is null) return Results.NotFound();
+            if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
 
-            if (target.Role != SRVS.Domain.Enums.UserRoleType.Viewer) return Results.BadRequest(new { error = "Can only manage student accounts." });
+            var syllabi = await dbContext.SyllabusAssignments
+                .Where(a => a.StudentId == studentId && a.IsActive)
+                .Join(dbContext.SyllabusDocuments, a => a.SyllabusId, s => s.Id, (a, s) => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester })
+                .ToListAsync();
 
-            // Soft-delete
-            target.AccountStatus = SRVS.Domain.Enums.UserAccountStatus.Deleted;
-            await dbContext.SaveChangesAsync();
-
-            return Results.Ok();
+            return Results.Ok(syllabi);
         });
     }
 }
