@@ -48,3 +48,21 @@ public class AssignmentResponse
     public DateTimeOffset AssignedAt { get; set; }
     public string AssignedBy { get; set; } = string.Empty; // DeptHead Id or name
 }
+
+public class SyllabusPendingResponse
+{
+    public Guid Id { get; set; }
+    public string CourseCode { get; set; } = string.Empty;
+    public string CourseTitle { get; set; } = string.Empty;
+    public string FacultyName { get; set; } = string.Empty;
+    public string AcademicYear { get; set; } = string.Empty;
+    public string Semester { get; set; } = string.Empty;
+    public int CurrentVersionNumber { get; set; }
+    public string CurrentFileName { get; set; } = string.Empty;
+    public DateTimeOffset? SubmittedAtUtc { get; set; }
+}
+
+public class ReviewSyllabusRequest
+{
+    public string? Remarks { get; set; }
+}

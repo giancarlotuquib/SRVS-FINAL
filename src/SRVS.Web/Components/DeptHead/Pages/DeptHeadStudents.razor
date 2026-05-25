@@ -229,7 +229,8 @@
         var deptId = CurrentDeptHead.DepartmentId;
 
         Syllabi = await dbContext.SyllabusDocuments
-            .Where(s => s.DepartmentId == deptId && !string.IsNullOrEmpty(s.OwnerUserId))
+            .Where(s => s.DepartmentId == deptId && s.Status == SyllabusStatus.Submitted && !string.IsNullOrEmpty(s.OwnerUserId))
+            .OrderByDescending(s => s.SubmittedAtUtc ?? s.UpdatedAtUtc)
             .Select(s => new SyllabusListResponse
             {
                 Id = s.Id,

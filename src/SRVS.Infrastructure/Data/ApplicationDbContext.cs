@@ -23,4 +23,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 	public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
 	public DbSet<NotificationEntry> NotificationEntries => Set<NotificationEntry>();
+
+	protected override void OnModelCreating(ModelBuilder modelBuilder)
+	{
+		base.OnModelCreating(modelBuilder);
+
+		// Add index to speed up DeptHead lookups for syllabi by DepartmentId + Status
+		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => new { s.DepartmentId, s.Status });
+	}
 }

@@ -1,5 +1,6 @@
 @page "/admin/user-management"
 @attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using SRVS.Domain.Entities
@@ -14,28 +15,34 @@
 
 <section class="container py-4">
     <h1 class="h3 mb-4">User Management</h1>
+    <p class="text-secondary mb-4">Manage approved and active user accounts. Pending registration requests are handled in <a href="/admin/registrations">Registration Approvals</a>.</p>
 
     @if (!string.IsNullOrWhiteSpace(successMessage))
     {
-        <div class="alert alert-success">@successMessage</div>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
     }
 
     @if (users.Count == 0)
     {
-        <p>No users found.</p>
+        <div class="alert alert-info">
+            <strong>No users found.</strong> All pending registrations are shown in <a href="/admin/registrations">Registration Approvals</a> before they appear here.
+        </div>
     }
     else
     {
         <div class="table-responsive">
             <table class="table table-striped align-middle">
-                <thead>
+                <thead class="table-light">
                     <tr>
                         <th>Username</th>
                         <th>Institutional ID</th>
                         <th>Role</th>
                         <th>Email</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,22 +56,22 @@
                             <td>
                                 <span class="badge @GetStatusBadgeClass(user.AccountStatus)">@user.AccountStatus</span>
                             </td>
-                            <td class="text-nowrap">
-                                <div class="btn-group">
+                            <td class="text-end text-nowrap">
+                                <div class="btn-group btn-group-sm" role="group">
                                     @if (user.AccountStatus != UserAccountStatus.Active)
                                     {
-                                        <button class="btn btn-sm btn-success" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Active)" disabled="@isProcessing" title="Activate">
-                                            <i class="bi bi-check-circle"></i>
+                                        <button type="button" class="btn btn-outline-success" @onclick="() => OpenConfirmation(user, UserAccountStatus.Active)" disabled="@isProcessing" title="Activate this user">
+                                            Activate
                                         </button>
                                     }
                                     @if (user.AccountStatus == UserAccountStatus.Active)
                                     {
-                                        <button class="btn btn-sm btn-warning" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Suspended)" disabled="@isProcessing" title="Deactivate">
-                                            <i class="bi bi-dash-circle"></i>
+                                        <button type="button" class="btn btn-outline-warning" @onclick="() => OpenConfirmation(user, UserAccountStatus.Suspended)" disabled="@isProcessing" title="Deactivate this user">
+                                            Deactivate
                                         </button>
                                     }
-                                    <button class="btn btn-sm btn-danger" type="button" @onclick="() => OpenConfirmation(user, UserAccountStatus.Deleted)" disabled="@isProcessing" title="Delete">
-                                        <i class="bi bi-trash"></i>
+                                    <button type="button" class="btn btn-outline-danger" @onclick="() => OpenConfirmation(user, UserAccountStatus.Deleted)" disabled="@isProcessing" title="Delete this user">
+                                        Delete
                                     </button>
                                 </div>
                             </td>
@@ -102,7 +109,19 @@
             return;
         }
 
-        users = await UserActionService.GetAllUsersAsync();
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            users = await UserActionService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            successMessage = $"Error loading users: {ex.Message}";
+        }
     }
 
     private void OpenConfirmation(ApplicationUser user, UserAccountStatus targetStatus)
@@ -133,6 +152,7 @@
         }
 
         isProcessing = true;
+        StateHasChanged();
 
         try
         {
@@ -140,25 +160,31 @@
 
             if (updatedUser is null)
             {
+                successMessage = "Error: User not found.";
                 await CloseConfirmationAsync();
                 return;
             }
 
-            users = await UserActionService.GetAllUsersAsync();
+            await LoadUsersAsync();
 
             successMessage = pendingStatus.Value switch
             {
-                UserAccountStatus.Deleted => $"User '{pendingUser.UserName}' was deleted and saved to the database.",
-                UserAccountStatus.Active => $"User '{pendingUser.UserName}' was activated and saved to the database.",
-                UserAccountStatus.Suspended => $"User '{pendingUser.UserName}' was deactivated and saved to the database.",
-                _ => $"User '{pendingUser.UserName}' status was updated."
+                UserAccountStatus.Deleted => $"✓ User '{pendingUser.UserName}' was deleted and database updated.",
+                UserAccountStatus.Active => $"✓ User '{pendingUser.UserName}' was activated and database updated.",
+                UserAccountStatus.Suspended => $"✓ User '{pendingUser.UserName}' was deactivated and database updated.",
+                _ => $"✓ User '{pendingUser.UserName}' status was updated."
             };
 
             await CloseConfirmationAsync();
         }
+        catch (Exception ex)
+        {
+            successMessage = $"Error updating user: {ex.Message}";
+        }
         finally
         {
             isProcessing = false;
+            StateHasChanged();
         }
     }
 
