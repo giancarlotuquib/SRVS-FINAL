@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using SRVS.Web.DTOs
 @using SRVS.Domain.Enums
+@using System.Text.Json
 
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -358,7 +359,7 @@
 
     private void SetupAutoRefresh()
     {
-        refreshTimer = new System.Timers.Timer(30000); // 30 seconds
+        refreshTimer = new System.Timers.Timer(5000); // 5 seconds
         refreshTimer.Elapsed += async (sender, e) =>
         {
             await InvokeAsync(async () =>
@@ -385,14 +386,14 @@
             {
                 // Extract pending syllabi from the debug response
                 var pendingSyllabiData = response.GetProperty("PendingSyllabi");
-                pendingSyllabi = pendingSyllabiData.Deserialize<List<SyllabusPendingResponse>>() ?? new();
-                
+                pendingSyllabi = pendingSyllabiData.Deserialize<List<SyllabusPendingResponse>>() ?? new List<SyllabusPendingResponse>();
+
                 // Log debug info
                 var deptId = response.GetProperty("DepartmentId").GetGuid();
                 var totalInSystem = response.GetProperty("TotalSyllabiInSystem").GetInt32();
                 var totalInDept = response.GetProperty("TotalSyllabiInDept").GetInt32();
                 var pendingCount = response.GetProperty("PendingCount").GetInt32();
-                
+
                 if (totalInSystem == 0)
                 {
                     errorMessage = $"Debug: No syllabi found in the entire system. Faculty may not have uploaded any syllabi yet.";

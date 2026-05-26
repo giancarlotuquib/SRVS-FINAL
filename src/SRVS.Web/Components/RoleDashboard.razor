@@ -205,7 +205,7 @@
         await LoadCurrentUserContextAsync();
         await ReloadAsync();
 
-        if (Role == UserRoleType.Educator)
+        if (Role == UserRoleType.Educator || Role == UserRoleType.DepartmentHead || Role == UserRoleType.Admin)
         {
             refreshCancellationSource = new CancellationTokenSource();
             _ = RefreshLoopAsync(refreshCancellationSource.Token);
@@ -554,7 +554,7 @@
 
     private async Task RefreshLoopAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
 
         try
         {
