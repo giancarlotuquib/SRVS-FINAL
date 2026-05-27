@@ -29,9 +29,13 @@ public class RegisterRequest
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "School ID is required.")]
-    [RegularExpression(@"^(?:\d{5}|\d{10})$", ErrorMessage = "School ID must be exactly 5 digits for Admin, Department Head, and Faculty, or 10 digits for Student.")]
+    [RegularExpression(@"^(?:\d{5}|\d{10})$", ErrorMessage = "School ID must be exactly 5 digits for Department Head and Faculty, or 10 digits for Student.")]
     [JsonPropertyName("schoolId")]
     public string SchoolId { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Role is required.")]
+    [JsonPropertyName("role")]
+    public SRVS.Domain.Enums.UserRoleType Role { get; set; } = SRVS.Domain.Enums.UserRoleType.Viewer;
 
     [Required(ErrorMessage = "Password is required.")]
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]

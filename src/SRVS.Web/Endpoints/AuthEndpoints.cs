@@ -9,6 +9,7 @@ using SRVS.Web.Data;
 using SyllabusRepository.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace SRVS.Web.Endpoints;
 
@@ -63,21 +64,39 @@ public static class AuthEndpoints
         // Register
         authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
-            // Infer role from School ID
-            UserRoleType inferredRole;
-            if (request.SchoolId.Length == 5)
+            // Normalise SchoolId: trim whitespace and remove non-digits
+            request.SchoolId = request.SchoolId?.Trim() ?? string.Empty;
+            var digitsOnly = new string(request.SchoolId.Where(char.IsDigit).ToArray());
+            request.SchoolId = digitsOnly;
+
+            // Do not allow Admin self-registration
+            if (request.Role == UserRoleType.Admin)
             {
-                // Only Department Head or Faculty can self-register; Admins are seeded by system
-                // For simplicity, default to Department Head if School ID starts with '1', else Faculty
-                inferredRole = request.SchoolId.StartsWith("1") ? UserRoleType.DepartmentHead : UserRoleType.Educator;
+                return Results.BadRequest(new { error = "Admin accounts cannot be self-registered." });
             }
-            else if (request.SchoolId.Length == 10)
+
+            // Strict validation: enforce digit count per role
+            var idLen = request.SchoolId?.Length ?? 0;
+            
+            if (request.Role == UserRoleType.Viewer)
             {
-                inferredRole = UserRoleType.Viewer;
+                // Students MUST use exactly 10 digits
+                if (idLen != 10)
+                {
+                    return Results.BadRequest(new { error = "Students must use a 10-digit School ID." });
+                }
+            }
+            else if (request.Role == UserRoleType.DepartmentHead || request.Role == UserRoleType.Educator)
+            {
+                // DeptHead and Faculty MUST use exactly 5 digits
+                if (idLen != 5)
+                {
+                    return Results.BadRequest(new { error = "Department Head and Faculty must use a 5-digit School ID." });
+                }
             }
             else
             {
-                return Results.BadRequest(new { error = "School ID must be exactly 5 digits (Department Head/Faculty) or 10 digits (Student)." });
+                return Results.BadRequest(new { error = "Invalid role selected." });
             }
 
             // Check for existing InstitutionalId (SchoolId)
@@ -99,7 +118,7 @@ public static class AuthEndpoints
                 Email = request.Email,
                 FullName = $"{request.FirstName} {request.LastName}".Trim(),
                 InstitutionalId = request.SchoolId,
-                Role = inferredRole, // assign inferred role
+                Role = request.Role,
                 AccountStatus = UserAccountStatus.PendingApproval,
                 EmailConfirmed = true
             };
@@ -114,12 +133,13 @@ public static class AuthEndpoints
                     Email = user.Email,
                     InstitutionalId = user.InstitutionalId,
                     RequestedRole = user.Role,
-                    Status = RegistrationStatus.Pending
+                    Status = RegistrationStatus.Pending,
+                    CreatedAtUtc = DateTimeOffset.UtcNow
                 };
                 dbContext.RegistrationRequests.Add(registrationRequest);
                 await dbContext.SaveChangesAsync();
 
-                return Results.Ok(new { message = "Account created successfully." });
+                return Results.Ok(new { message = "Account created successfully. Your registration is pending approval." });
             }
 
             return Results.BadRequest(result.Errors);

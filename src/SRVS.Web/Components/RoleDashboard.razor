@@ -14,7 +14,7 @@
 @inject NavigationManager NavigationManager
 
 <section class="container py-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <div>
             <p class="text-uppercase text-secondary small mb-1">@RoleLabel dashboard</p>
             <h1 class="h3 mb-0">@Title</h1>
@@ -195,7 +195,7 @@
         UserRoleType.Admin => "Pending Registrations",
         UserRoleType.DepartmentHead => "Pending CE Syllabus Reviews",
         UserRoleType.Educator => "Syllabus Repository",
-        UserRoleType.Viewer => "Student Access",
+        UserRoleType.Viewer => "My Assigned Syllabi",
         _ => "Overview"
     };
 
@@ -256,8 +256,7 @@
                 new DashboardLink("Student Assignment", "/department-head/students"),
                 new DashboardLink("Upload Syllabus", "/department-head/upload"),
                 new DashboardLink("Review Submissions", "/department-head/review-submissions"),
-                new DashboardLink("Syllabus Repository", "/department-head/syllabus-repository"),
-                new DashboardLink("Registration Approvals", "/department-head/registrations")
+                new DashboardLink("Syllabus Repository", "/department-head/syllabus-repository")
             },
             UserRoleType.Educator => new[]
             {
@@ -480,30 +479,34 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadViewerPanelsAsync(ApplicationDbContext dbContext)
     {
-        var approvedDocs = await dbContext.SyllabusDocuments
+        // Get syllabi assigned to the current student
+        var assignedData = await dbContext.SyllabusAssignments
             .AsNoTracking()
-            .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
-            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .Where(a => a.StudentId == currentUserId && a.IsActive)
+            .Join(
+                dbContext.SyllabusDocuments.AsNoTracking(),
+                a => a.SyllabusId,
+                d => d.Id,
+                (a, d) => new { Assignment = a, Document = d })
+            .OrderByDescending(x => x.Assignment.AssignedAt)
             .Take(5)
             .ToListAsync();
 
-        var recentDocs = await dbContext.SyllabusDocuments
-            .AsNoTracking()
-            .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
-            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
-            .Take(5)
-            .ToListAsync();
-
-        var primary = approvedDocs.Select(document => new DashboardPrimaryItem(
+        var assignedDocs = assignedData.Select(x => x.Document).ToList();
+        
+        var primary = assignedDocs.Select(document => new DashboardPrimaryItem(
             document.CourseCode,
             document.CourseTitle,
             $"{document.Semester} • {document.InstructorName}",
-            document.CurrentVersionNumber.ToString())).ToList();
+            document.CurrentVersionNumber.ToString(),
+            $"/syllabi/{document.Id}",
+            "View Syllabus")).ToList();
 
-        var activity = recentDocs.Select(document => new DashboardActivityItem(
-            document.CourseCode,
-            document.LatestChangeSummary ?? "Recently published syllabus available.",
-            (document.UpdatedAtUtc ?? document.CreatedAtUtc).ToLocalTime().ToString("g"))).ToList();
+        var activity = assignedData.Select(item => new DashboardActivityItem(
+            item.Document.CourseCode,
+            $"Assigned syllabus: {item.Document.CourseTitle}",
+            item.Assignment.AssignedAt.ToLocalTime().ToString("g"),
+            $"/syllabi/{item.Document.Id}")).ToList();
 
         return (primary, activity);
     }

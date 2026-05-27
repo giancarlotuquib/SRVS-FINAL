@@ -30,11 +30,13 @@ public class RegistrationApprovalService(
 
         if (callerRole == UserRoleType.DepartmentHead)
         {
-            query = query.Where(r => r.RequestedRole == UserRoleType.Educator || r.RequestedRole == UserRoleType.Viewer);
+            // DepartmentHead can only approve Faculty (Educator) registrations
+            query = query.Where(r => r.RequestedRole == UserRoleType.Educator);
         }
         else if (callerRole == UserRoleType.Admin)
         {
-            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead);
+            // Admin can approve DepartmentHead and Student (Viewer) registrations
+            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead || r.RequestedRole == UserRoleType.Viewer);
         }
 
         var pending = await query

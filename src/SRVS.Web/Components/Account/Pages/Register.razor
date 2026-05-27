@@ -2,6 +2,7 @@
 
 @using System.ComponentModel.DataAnnotations
 @using System.Net.Http.Json
+@using System.Linq
 @using SyllabusRepository.DTOs
 @using SRVS.Domain.Enums
 
@@ -58,10 +59,18 @@
                         <div class="mb-3">
                             <label class="form-label" for="RegisterInput.SchoolId">School ID</label>
                             <InputText @bind-Value="RegisterInput.SchoolId" id="RegisterInput.SchoolId" class="form-control" placeholder="5 digits or 10 digits" autocomplete="username" />
-                            <div class="form-text small text-muted">Admin, Department Head, and Faculty use 5 digits; Student uses 10 digits.</div>
+                            <div class="form-text small text-muted">Department Head and Faculty use 5 digits; Student uses 10 digits.</div>
                             <ValidationMessage For="() => RegisterInput.SchoolId" class="text-danger small" />
                         </div>
-                    <!-- Role selection removed. Role will be inferred from School ID. -->
+                        <div class="mb-3">
+                            <label class="form-label" for="RegisterInput.Role">Role</label>
+                            <select id="RegisterInput.Role" class="form-select" @bind="selectedRole">
+                                <option value="1">Department Head</option>
+                                <option value="2">Faculty</option>
+                                <option value="3">Student</option>
+                            </select>
+                            <ValidationMessage For="() => RegisterInput.Role" class="text-danger small" />
+                        </div>
 
                         <div class="mb-4">
                             <label class="form-label" for="RegisterInput.Password">Password</label>
@@ -107,6 +116,7 @@
     private bool isSubmitting;
     private bool showSuccessMessage;
     private string? errorMessage;
+    private int selectedRole;
 
     [SupplyParameterFromForm]
     private RegisterRequest RegisterInput { get; set; } = default!;
@@ -114,6 +124,9 @@
     protected override void OnInitialized()
     {
         RegisterInput ??= new RegisterRequest();
+        // default to Department Head for the role dropdown
+        RegisterInput.Role = UserRoleType.DepartmentHead;
+        selectedRole = (int)RegisterInput.Role;
     }
 
     private async Task RegisterUser()
@@ -123,6 +136,37 @@
         showSuccessMessage = false;
         try
         {
+            // Ensure RegisterInput.Role matches selectedRole
+            RegisterInput.Role = (UserRoleType)selectedRole;
+
+            // Trim SchoolId and keep only digits
+            var raw = RegisterInput.SchoolId ?? string.Empty;
+            var digitsOnly = new string(raw.Where(char.IsDigit).ToArray());
+            RegisterInput.SchoolId = digitsOnly;
+
+            // Strict validation based on selected role
+            if (RegisterInput.Role == UserRoleType.Viewer) // Student
+            {
+                if (RegisterInput.SchoolId.Length != 10)
+                {
+                    errorMessage = "Students must use a 10-digit School ID.";
+                    return;
+                }
+            }
+            else if (RegisterInput.Role == UserRoleType.DepartmentHead || RegisterInput.Role == UserRoleType.Educator) // DeptHead or Faculty
+            {
+                if (RegisterInput.SchoolId.Length != 5)
+                {
+                    errorMessage = "Department Head and Faculty must use a 5-digit School ID.";
+                    return;
+                }
+            }
+            else
+            {
+                errorMessage = "Please select a valid role.";
+                return;
+            }
+
             var response = await Http.PostAsJsonAsync("/api/auth/register", RegisterInput);
             if (response.IsSuccessStatusCode)
             {
@@ -131,11 +175,13 @@
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
-                errorMessage = "School ID or email already exists.";
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = !string.IsNullOrWhiteSpace(body) ? body : "School ID or email already exists.";
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
-                errorMessage = "Validation failed. Please check the fields and try again.";
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = !string.IsNullOrWhiteSpace(body) ? body : "Validation failed. Please check the fields and try again.";
             }
             else
             {
@@ -151,4 +197,6 @@
             isSubmitting = false;
         }
     }
+
+    
 }
