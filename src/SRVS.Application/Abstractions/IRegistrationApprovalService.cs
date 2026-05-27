@@ -7,6 +7,7 @@ namespace SRVS.Application.Abstractions;
 public interface IRegistrationApprovalService
 {
     Task<RegistrationReviewQuery> GetQueueAsync(UserRoleType? callerRole = null, string? search = null, CancellationToken cancellationToken = default);
+    Task<RegistrationRequest> GetRegistrationRequestAsync(Guid registrationRequestId, CancellationToken cancellationToken = default);
 
     Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, UserRoleType reviewerRole, Guid? reviewerDepartmentId, CancellationToken cancellationToken = default);
 

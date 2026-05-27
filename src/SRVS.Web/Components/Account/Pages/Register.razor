@@ -61,16 +61,7 @@
                             <div class="form-text small text-muted">Admin, Department Head, and Faculty use 5 digits; Student uses 10 digits.</div>
                             <ValidationMessage For="() => RegisterInput.SchoolId" class="text-danger small" />
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="RegisterInput.Role">Role</label>
-                            <InputSelect @bind-Value="RegisterInput.Role" id="RegisterInput.Role" class="form-select">
-                                <option value="" disabled>Select role</option>
-                                <option value="@UserRoleType.DepartmentHead">Department Head</option>
-                                <option value="@UserRoleType.Educator">Faculty</option>
-                                <option value="@UserRoleType.Viewer">Student</option>
-                            </InputSelect>
-                            <ValidationMessage For="() => RegisterInput.Role" class="text-danger small" />
-                        </div>
+                    <!-- Role selection removed. Role will be inferred from School ID. -->
 
                         <div class="mb-4">
                             <label class="form-label" for="RegisterInput.Password">Password</label>

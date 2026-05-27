@@ -63,9 +63,21 @@ public static class AuthEndpoints
         // Register
         authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
-            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
+            // Infer role from School ID
+            UserRoleType inferredRole;
+            if (request.SchoolId.Length == 5)
             {
-                return Results.BadRequest(new { error = "Institutional ID must match the selected role: 5 digits for Admin, Department Head, and Educator; 10 digits for Student." });
+                // Only Department Head or Faculty can self-register; Admins are seeded by system
+                // For simplicity, default to Department Head if School ID starts with '1', else Faculty
+                inferredRole = request.SchoolId.StartsWith("1") ? UserRoleType.DepartmentHead : UserRoleType.Educator;
+            }
+            else if (request.SchoolId.Length == 10)
+            {
+                inferredRole = UserRoleType.Viewer;
+            }
+            else
+            {
+                return Results.BadRequest(new { error = "School ID must be exactly 5 digits (Department Head/Faculty) or 10 digits (Student)." });
             }
 
             // Check for existing InstitutionalId (SchoolId)
@@ -87,15 +99,15 @@ public static class AuthEndpoints
                 Email = request.Email,
                 FullName = $"{request.FirstName} {request.LastName}".Trim(),
                 InstitutionalId = request.SchoolId,
-                Role = request.Role, // assign role from registration request
+                Role = inferredRole, // assign inferred role
                 AccountStatus = UserAccountStatus.PendingApproval,
                 EmailConfirmed = true
             };
             var result = await userManager.CreateAsync(user, request.Password);
-            
+
             if (result.Succeeded)
             {
-                // Create RegistrationRequest for admin approval
+                // Create RegistrationRequest for admin/department head approval
                 var registrationRequest = new RegistrationRequest
                 {
                     FullName = user.FullName,
@@ -106,10 +118,10 @@ public static class AuthEndpoints
                 };
                 dbContext.RegistrationRequests.Add(registrationRequest);
                 await dbContext.SaveChangesAsync();
-                
+
                 return Results.Ok(new { message = "Account created successfully." });
             }
-            
+
             return Results.BadRequest(result.Errors);
         });
 

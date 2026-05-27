@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using SRVS.Application.Abstractions;
 using SRVS.Domain.Entities;
+using SRVS.Domain.Enums;
 using SRVS.Web.Data;
 using SRVS.Web.Components.Admin.Models;
 
@@ -41,6 +42,22 @@ public static class RegistrationEndpoints
             if (user is null)
             {
                 return Results.Unauthorized();
+            }
+            // Enforce approval permissions
+            var registration = await registrationApprovalService.GetRegistrationRequestAsync(registrationRequestId, cancellationToken);
+            if (user.Role == UserRoleType.Admin)
+            {
+                if (registration.RequestedRole != UserRoleType.DepartmentHead)
+                    return Results.Forbid();
+            }
+            else if (user.Role == UserRoleType.DepartmentHead)
+            {
+                if (registration.RequestedRole != UserRoleType.Educator && registration.RequestedRole != UserRoleType.Viewer)
+                    return Results.Forbid();
+            }
+            else
+            {
+                return Results.Forbid();
             }
 
             await registrationApprovalService.ApproveAsync(registrationRequestId, user.Id, user.FullName ?? string.Empty, user.Role, user.DepartmentId, cancellationToken);

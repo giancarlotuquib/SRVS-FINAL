@@ -153,6 +153,14 @@ public class RegistrationApprovalService(
             ?? throw new InvalidOperationException("The selected registration request could not be found.");
     }
 
+    public async Task<RegistrationRequest> GetRegistrationRequestAsync(Guid registrationRequestId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RegistrationRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == registrationRequestId, cancellationToken)
+            ?? throw new InvalidOperationException("Registration request not found.");
+    }
+
     private Task<ApplicationUser?> FindUserByEmailAsync(string email, CancellationToken cancellationToken)
     {
         return userManager.FindByEmailAsync(email);
