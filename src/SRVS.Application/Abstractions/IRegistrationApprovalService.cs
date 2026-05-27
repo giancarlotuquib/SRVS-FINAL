@@ -1,12 +1,14 @@
 using SRVS.Application.Models;
+using SRVS.Domain.Entities;
+using SRVS.Domain.Enums;
 
 namespace SRVS.Application.Abstractions;
 
 public interface IRegistrationApprovalService
 {
-    Task<RegistrationReviewQuery> GetQueueAsync(string? search = null, CancellationToken cancellationToken = default);
+    Task<RegistrationReviewQuery> GetQueueAsync(UserRoleType? callerRole = null, string? search = null, CancellationToken cancellationToken = default);
 
-    Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, CancellationToken cancellationToken = default);
+    Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, UserRoleType reviewerRole, Guid? reviewerDepartmentId, CancellationToken cancellationToken = default);
 
     Task RejectAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, string reviewRemarks, CancellationToken cancellationToken = default);
 

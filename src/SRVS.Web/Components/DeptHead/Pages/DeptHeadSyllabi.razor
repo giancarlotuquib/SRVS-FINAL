@@ -10,6 +10,7 @@
 
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Syllabi Management</PageTitle>
 
@@ -466,27 +467,12 @@
 
     private void ViewSyllabus(SyllabusPendingResponse syllabus)
     {
-        viewingSyllabus = syllabus;
-        showViewPanel = true;
+        NavigationManager.NavigateTo($"/syllabi/{syllabus.Id}");
     }
 
     private void ViewSyllabusFromAll(SyllabusListResponse syllabus)
     {
-        viewingSyllabusFromAll = syllabus;
-        // Convert to SyllabusPendingResponse for viewing
-        viewingSyllabus = new SyllabusPendingResponse
-        {
-            Id = syllabus.Id,
-            CourseCode = syllabus.SubjectCode,
-            CourseTitle = syllabus.SubjectTitle,
-            FacultyName = syllabus.FacultyName,
-            AcademicYear = syllabus.AcademicYear,
-            Semester = syllabus.Semester,
-            CurrentVersionNumber = 0,
-            CurrentFileName = "Unknown",
-            SubmittedAtUtc = syllabus.UploadedAt
-        };
-        showViewPanel = true;
+        NavigationManager.NavigateTo($"/syllabi/{syllabus.Id}");
     }
 
     private void CloseViewPanel()

@@ -12,7 +12,7 @@ public class RegistrationApprovalService(
     ApplicationDbContext dbContext,
     UserManager<ApplicationUser> userManager) : IRegistrationApprovalService
 {
-    public async Task<RegistrationReviewQuery> GetQueueAsync(string? search = null, CancellationToken cancellationToken = default)
+    public async Task<RegistrationReviewQuery> GetQueueAsync(UserRoleType? callerRole = null, string? search = null, CancellationToken cancellationToken = default)
     {
         var query = dbContext.RegistrationRequests
             .AsNoTracking()
@@ -26,6 +26,15 @@ public class RegistrationApprovalService(
                 request.FullName.Contains(term) ||
                 request.Email.Contains(term) ||
                 request.InstitutionalId.Contains(term));
+        }
+
+        if (callerRole == UserRoleType.DepartmentHead)
+        {
+            query = query.Where(r => r.RequestedRole == UserRoleType.Educator || r.RequestedRole == UserRoleType.Viewer);
+        }
+        else if (callerRole == UserRoleType.Admin)
+        {
+            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead);
         }
 
         var pending = await query
@@ -45,7 +54,7 @@ public class RegistrationApprovalService(
         return await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending, cancellationToken);
     }
 
-    public async Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, CancellationToken cancellationToken = default)
+    public async Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, UserRoleType reviewerRole, Guid? reviewerDepartmentId, CancellationToken cancellationToken = default)
     {
         var request = await LoadRequestAsync(registrationRequestId, cancellationToken);
         if (request.Status != RegistrationStatus.Pending)
@@ -63,6 +72,11 @@ public class RegistrationApprovalService(
 
         user.AccountStatus = UserAccountStatus.Active;
         user.LastLoginAtUtc ??= null;
+
+        if (reviewerRole == UserRoleType.DepartmentHead && (user.Role == UserRoleType.Educator || user.Role == UserRoleType.Viewer))
+        {
+            user.DepartmentId = reviewerDepartmentId;
+        }
 
         dbContext.AuditLogEntries.Add(new AuditLogEntry
         {

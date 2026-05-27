@@ -18,10 +18,14 @@ public static class RegistrationEndpoints
 
         api.MapGet("/", async (
             string? search,
+            HttpContext httpContext,
+            UserManager<ApplicationUser> userManager,
             IRegistrationApprovalService registrationApprovalService,
             CancellationToken cancellationToken) =>
         {
-            var queue = await registrationApprovalService.GetQueueAsync(search, cancellationToken);
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            var queue = await registrationApprovalService.GetQueueAsync(user.Role, search, cancellationToken);
             return Results.Ok(queue);
         })
         .WithName("GetRegistrationQueue");
@@ -39,7 +43,7 @@ public static class RegistrationEndpoints
                 return Results.Unauthorized();
             }
 
-            await registrationApprovalService.ApproveAsync(registrationRequestId, user.Id, user.FullName, cancellationToken);
+            await registrationApprovalService.ApproveAsync(registrationRequestId, user.Id, user.FullName ?? string.Empty, user.Role, user.DepartmentId, cancellationToken);
             return Results.NoContent();
         })
         .WithName("ApproveRegistration");

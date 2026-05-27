@@ -46,9 +46,11 @@ public static class SyllabusEndpoints
             }
 
             // Read file into memory to prevent disposal issues
-            using var fileStream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken);
-            using var memoryStream = new MemoryStream();
-            await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            var memoryStream = new MemoryStream();
+            using (var fileStream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken))
+            {
+                await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            }
             memoryStream.Position = 0;
 
             var contentType = Path.GetExtension(document.CurrentFileName).ToLowerInvariant() switch
@@ -90,9 +92,11 @@ public static class SyllabusEndpoints
             }
 
             // Read file into memory to prevent disposal issues
-            using var fileStream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken);
-            using var memoryStream = new MemoryStream();
-            await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            var memoryStream = new MemoryStream();
+            using (var fileStream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken))
+            {
+                await fileStream.CopyToAsync(memoryStream, cancellationToken);
+            }
             memoryStream.Position = 0;
 
             var contentType = Path.GetExtension(version.FileName).ToLowerInvariant() switch

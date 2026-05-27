@@ -25,19 +25,15 @@ public static class AuthEndpoints
                 return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("School ID and password are required."));
             }
 
-            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
-            {
-                var message = request.Role == UserRoleType.Viewer
-                    ? "Student School IDs must contain exactly 10 digits."
-                    : "Admin, Department Head, and Faculty School IDs must contain exactly 5 digits.";
-
-                return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString(message));
-            }
-
             var user = await userManager.Users.FirstOrDefaultAsync(candidate => candidate.InstitutionalId == request.SchoolId.Trim());
-            if (user is null || user.Role != request.Role)
+            if (user is null)
             {
                 return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("Invalid School ID or password."));
+            }
+
+            if (user.AccountStatus != UserAccountStatus.Active)
+            {
+                return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("Account is not active."));
             }
 
             var result = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);
@@ -131,9 +127,9 @@ public static class AuthEndpoints
             var user = await userManager.Users.FirstOrDefaultAsync(u => u.InstitutionalId == request.SchoolId);
             if (user == null) return Results.Unauthorized();
 
-            if (user.Role != request.Role)
+            if (user.AccountStatus != UserAccountStatus.Active)
             {
-                return Results.Json(new { correctRole = user.Role.ToString() }, statusCode: 403);
+                return Results.Json(new { error = "Account is not active." }, statusCode: 403);
             }
 
             var signInResult = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);

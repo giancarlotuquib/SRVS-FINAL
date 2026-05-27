@@ -31,15 +31,7 @@
                             <input type="text" name="SchoolId" id="SchoolId" class="form-control" placeholder="ID number" autocomplete="username" value="@(loginModel.SchoolId ?? string.Empty)" />
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label" for="Role">Sign in as</label>
-                            <select name="Role" id="Role" class="form-select">
-                                <option value="Admin" selected="@(loginModel.Role == UserRoleType.Admin)">Admin</option>
-                                <option value="DepartmentHead" selected="@(loginModel.Role == UserRoleType.DepartmentHead)">Department Head</option>
-                                <option value="Educator" selected="@(loginModel.Role == UserRoleType.Educator)">Faculty</option>
-                                <option value="Viewer" selected="@(loginModel.Role == UserRoleType.Viewer)">Student</option>
-                            </select>
-                        </div>
+
 
                         <div class="mb-4">
                             <label class="form-label d-flex justify-content-between" for="Password">
@@ -71,12 +63,11 @@
     [SupplyParameterFromQuery(Name = "error")]
     public string? ErrorMessage { get; set; }
 
-    private LoginModel loginModel { get; set; } = new() { Role = UserRoleType.Admin };
+    private LoginModel loginModel { get; set; } = new();
 
     private sealed class LoginModel
     {
         public string SchoolId { get; set; } = string.Empty;
-        public UserRoleType Role { get; set; } = UserRoleType.Admin;
         public string Password { get; set; } = string.Empty;
     }
 }

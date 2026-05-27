@@ -1,5 +1,6 @@
 @page "/admin/registrations"
-@attribute [Authorize]
+@page "/department-head/registrations"
+@attribute [Authorize(Roles = "Admin,DepartmentHead")]
 @rendermode InteractiveServer
 @implements IDisposable
 
@@ -19,9 +20,9 @@
 <section class="container py-4">
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4 p-md-5">
-            <p class="text-uppercase text-secondary small mb-1">Admin Dashboard</p>
+            <p class="text-uppercase text-secondary small mb-1">@(currentUser?.Role == UserRoleType.DepartmentHead ? "Department Head Dashboard" : "Admin Dashboard")</p>
             <h1 class="h3 mb-2">Registration Approvals</h1>
-            <p class="text-secondary mb-0">Manage pending user accounts. Review and approve or reject access requests across all roles.</p>
+            <p class="text-secondary mb-0">Manage pending user accounts. Review and approve or reject access requests.</p>
         </div>
     </div>
 
@@ -258,7 +259,7 @@
 
         try
         {
-            await RegistrationService.ApproveAsync(request.Id, currentUser.Id, currentUser.FullName);
+            await RegistrationService.ApproveAsync(request.Id, currentUser.Id, currentUser.FullName ?? string.Empty, currentUser.Role, currentUser.DepartmentId);
             successMessage = $"Successfully approved {request.FullName}.";
             await LoadDataAsync();
         }

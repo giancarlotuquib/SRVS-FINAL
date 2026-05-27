@@ -14,9 +14,6 @@ public class LoginRequest
     [JsonPropertyName("password")]
     public string Password { get; set; } = string.Empty;
 
-    [Required]
-    [JsonPropertyName("role")]
-    public UserRoleType Role { get; set; }
 }
 
 public class RegisterRequest
