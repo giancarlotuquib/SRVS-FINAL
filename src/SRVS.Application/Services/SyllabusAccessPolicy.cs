@@ -10,7 +10,7 @@ public static class SyllabusAccessPolicy
         return role switch
         {
             UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || IsSameDepartment(document, departmentId),
+            UserRoleType.DepartmentHead => true,
             UserRoleType.Educator => document.OwnerUserId == userId,
             UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
             _ => false

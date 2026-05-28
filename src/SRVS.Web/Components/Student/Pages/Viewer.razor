@@ -357,7 +357,7 @@
             if (document is not null)
             {
                 var departmentHeadHasAccess = await DepartmentHeadHasAccessAsync(dbContext, document.DepartmentId);
-                isDepartmentHead = currentUser!.Role == UserRoleType.DepartmentHead && (document.Status == SyllabusStatus.Submitted || departmentHeadHasAccess);
+                isDepartmentHead = currentUser!.Role == UserRoleType.DepartmentHead;
                 isOwner = currentUser.Id == document.OwnerUserId;
                 canReview = document.Status == SyllabusStatus.Submitted && currentUser.Role == UserRoleType.DepartmentHead;
                 canSubmit = SyllabusAccessPolicy.CanSubmit(document, currentUser.Role, currentUser.DepartmentId, currentUser.Id);
@@ -405,7 +405,7 @@
         return currentUser.Role switch
         {
             UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || departmentHeadHasAccess,
+            UserRoleType.DepartmentHead => true,
             UserRoleType.Educator => document.OwnerUserId == currentUser.Id,
             UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
             _ => false

@@ -54,10 +54,8 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
-
             var query = dbContext.SyllabusDocuments
-                .Where(s => departmentIds.Contains(s.DepartmentId) && !string.IsNullOrEmpty(s.OwnerUserId));
+                .Where(s => !string.IsNullOrEmpty(s.OwnerUserId));
 
             if (status.HasValue)
             {

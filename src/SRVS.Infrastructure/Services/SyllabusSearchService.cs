@@ -70,8 +70,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         return role switch
         {
             UserRoleType.Admin => query,
-            UserRoleType.DepartmentHead when statusFilter == SyllabusStatus.Submitted => query,
-            UserRoleType.DepartmentHead => ApplyDepartmentScope(query, departmentIds),
+            UserRoleType.DepartmentHead => query,
             UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId),
             UserRoleType.Viewer => ApplyDepartmentScope(query, departmentIds)
                 .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished),
@@ -121,7 +120,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         return role switch
         {
             UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || departmentIds.Contains(document.DepartmentId),
+            UserRoleType.DepartmentHead => true,
             UserRoleType.Educator => document.OwnerUserId == userId,
             UserRoleType.Viewer => (!requirePublishedForViewer || document.IsPublished) && document.Status == SyllabusStatus.Approved,
             _ => false
@@ -158,7 +157,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         return role switch
         {
             UserRoleType.Admin => "Full access",
-            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted ? "Pending review" : "Department scope",
+            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted ? "Pending review" : "Department head access",
             UserRoleType.Educator => document.OwnerUserId == string.Empty ? "Department scope" : "Owner/department scope",
             UserRoleType.Viewer => "Published",
             _ => "Read-only"

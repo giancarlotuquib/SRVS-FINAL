@@ -102,6 +102,45 @@ public class SyllabusSearchServiceTests
     }
 
     [Fact]
+    public async Task GetAccessibleDocumentAsync_DepartmentHeadCanOpenApprovedSyllabusFromAnyDepartment()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var document = await service.GetAccessibleDocumentAsync(
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            UserRoleType.DepartmentHead,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "dept-head-1");
+
+        Assert.NotNull(document);
+        Assert.Equal("BUS200", document.CourseCode);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DepartmentHeadApprovedFilterShowsRepositoryAcrossDepartments()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var results = await service.SearchAsync(
+            new SyllabusSearchRequest(Status: SyllabusStatus.Approved),
+            UserRoleType.DepartmentHead,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "dept-head-1");
+
+        Assert.Equal(2, results.Items.Count);
+        Assert.Contains(results.Items, item => item.CourseCode == "CE101" && item.CanDownload);
+        Assert.Contains(results.Items, item => item.CourseCode == "BUS200" && item.CanDownload);
+    }
+
+    [Fact]
     public async Task SearchAsync_DepartmentHeadSubmittedFilterShowsReviewQueue()
     {
         await using var factory = await CreateFactoryAsync();
