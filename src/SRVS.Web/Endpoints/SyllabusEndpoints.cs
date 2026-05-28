@@ -20,6 +20,30 @@ public static class SyllabusEndpoints
             .WithTags("Syllabi Downloads")
             .RequireAuthorization();
 
+        downloads.MapGet("/{syllabusDocumentId:guid}/view", async (
+            Guid syllabusDocumentId,
+            HttpContext httpContext,
+            ISyllabusSearchService syllabusSearchService,
+            ISyllabusFileStorage syllabusFileStorage,
+            UserManager<ApplicationUser> userManager,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.DepartmentId, user.Id, cancellationToken);
+            if (document is null)
+            {
+                return Results.NotFound();
+            }
+
+            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: false, cancellationToken);
+        })
+        .WithName("ViewSyllabus");
+
         downloads.MapGet("/{syllabusDocumentId:guid}/download", async (
             Guid syllabusDocumentId,
             HttpContext httpContext,
@@ -45,24 +69,33 @@ public static class SyllabusEndpoints
                 return Results.NotFound();
             }
 
-            // Read file into memory to prevent disposal issues
-            var memoryStream = new MemoryStream();
-            using (var fileStream = await syllabusFileStorage.OpenReadAsync(document.CurrentStoragePath, cancellationToken))
-            {
-                await fileStream.CopyToAsync(memoryStream, cancellationToken);
-            }
-            memoryStream.Position = 0;
-
-            var contentType = Path.GetExtension(document.CurrentFileName).ToLowerInvariant() switch
-            {
-                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                ".pdf" => "application/pdf",
-                _ => "application/octet-stream"
-            };
-
-            return Results.File(memoryStream, contentType, document.CurrentFileName);
+            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: true, cancellationToken);
         })
         .WithName("DownloadSyllabus");
+
+        downloads.MapGet("/versions/{versionId:guid}/view", async (
+            Guid versionId,
+            HttpContext httpContext,
+            ApplicationDbContext dbContext,
+            ISyllabusFileStorage syllabusFileStorage,
+            UserManager<ApplicationUser> userManager,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+
+            var version = await dbContext.SyllabusVersions
+                .Include(v => v.SyllabusDocument)
+                .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
+
+            if (version is null || version.SyllabusDocument is null) return Results.NotFound();
+
+            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.DepartmentId, user.Id);
+            if (!hasAccess) return Results.Forbid();
+
+            return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: false, cancellationToken);
+        })
+        .WithName("ViewSyllabusVersion");
 
         downloads.MapGet("/versions/{versionId:guid}/download", async (
             Guid versionId,
@@ -91,22 +124,7 @@ public static class SyllabusEndpoints
                 return Results.NotFound();
             }
 
-            // Read file into memory to prevent disposal issues
-            var memoryStream = new MemoryStream();
-            using (var fileStream = await syllabusFileStorage.OpenReadAsync(version.StoragePath, cancellationToken))
-            {
-                await fileStream.CopyToAsync(memoryStream, cancellationToken);
-            }
-            memoryStream.Position = 0;
-
-            var contentType = Path.GetExtension(version.FileName).ToLowerInvariant() switch
-            {
-                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                ".pdf" => "application/pdf",
-                _ => "application/octet-stream"
-            };
-
-            return Results.File(memoryStream, contentType, version.FileName);
+            return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: true, cancellationToken);
         })
         .WithName("DownloadSyllabusVersion");
 
@@ -172,5 +190,36 @@ public static class SyllabusEndpoints
         .WithName("GetSyllabusVersions");
 
         return app;
+    }
+
+    private static async Task<IResult> CreateFileResultAsync(
+        ISyllabusFileStorage syllabusFileStorage,
+        string storagePath,
+        string fileName,
+        bool asAttachment,
+        CancellationToken cancellationToken)
+    {
+        if (!await syllabusFileStorage.ExistsAsync(storagePath, cancellationToken))
+        {
+            return Results.NotFound();
+        }
+
+        var memoryStream = new MemoryStream();
+        await using (var fileStream = await syllabusFileStorage.OpenReadAsync(storagePath, cancellationToken))
+        {
+            await fileStream.CopyToAsync(memoryStream, cancellationToken);
+        }
+        memoryStream.Position = 0;
+
+        var contentType = Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".pdf" => "application/pdf",
+            _ => "application/octet-stream"
+        };
+
+        return asAttachment
+            ? Results.File(memoryStream, contentType, fileName, enableRangeProcessing: true)
+            : Results.File(memoryStream, contentType, enableRangeProcessing: true);
     }
 }

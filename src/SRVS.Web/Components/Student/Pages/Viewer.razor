@@ -56,7 +56,7 @@
             @if (canReview)
             {
                 <button class="btn btn-success" @onclick="() => InitiateApprove()" disabled="@isProcessing">
-                    <i class="bi bi-check-circle me-1"></i> Approve
+                    <i class="bi bi-check-circle me-1"></i> Accept
                 </button>
                 <button class="btn btn-danger" @onclick="() => InitiateReject()" disabled="@isProcessing">
                     <i class="bi bi-x-circle me-1"></i> Reject
@@ -89,17 +89,19 @@
                     <h5 class="mb-0 text-primary">
                         <i class="bi bi-file-earmark-pdf me-2"></i>Current Active Version (V@(document.CurrentVersionNumber))
                     </h5>
-                    @if (isDepartmentHead)
-                    {
+                    <div class="d-flex gap-2">
+                        <a href="/syllabi/@document.Id/view" class="btn btn-sm btn-outline-primary" target="_blank">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Open
+                        </a>
                         <a href="/syllabi/@document.Id/download" class="btn btn-sm btn-outline-secondary" target="_blank">
                             <i class="bi bi-download me-1"></i> Download
                         </a>
-                    }
+                    </div>
                 </div>
                 <div class="card-body p-0 flex-grow-1 position-relative" style="min-height: 500px;">
                     @if (document.CurrentFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                     {
-                        <iframe src="/syllabi/@document.Id/download" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="PDF Viewer"></iframe>
+                        <iframe src="/syllabi/@document.Id/view" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="PDF Viewer"></iframe>
                     }
                     else
                     {
@@ -108,10 +110,7 @@
                                 <i class="bi bi-file-earmark-word display-1 text-primary mb-3"></i>
                                 <h4>Word Document</h4>
                                 <p class="text-secondary">This file format cannot be previewed in the browser.</p>
-                                @if (isDepartmentHead)
-                                {
-                                    <a href="/syllabi/@document.Id/download" class="btn btn-primary mt-2">Download to View</a>
-                                }
+                                <a href="/syllabi/@document.Id/download" class="btn btn-primary mt-2">Download to View</a>
                             </div>
                         </div>
                     }
@@ -130,12 +129,9 @@
                             <i class="bi bi-clock-history me-2"></i>Historical Version (V@(compVersion?.VersionNumber))
                         </h5>
                         <div>
-                            @if (isDepartmentHead)
-                            {
-                                <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
-                                    <i class="bi bi-download"></i>
-                                </a>
-                            }
+                            <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
+                                <i class="bi bi-download"></i>
+                            </a>
                             <button class="btn btn-sm btn-outline-danger" @onclick="CloseComparison">
                                 <i class="bi bi-x-lg"></i>
                             </button>
@@ -144,7 +140,7 @@
                     <div class="card-body p-0 flex-grow-1 position-relative" style="min-height: 500px;">
                         @if (compVersion?.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true)
                         {
-                            <iframe src="/syllabi/versions/@(compVersion.Id)/download" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="Comparison PDF Viewer"></iframe>
+                            <iframe src="/syllabi/versions/@(compVersion.Id)/view" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="Comparison PDF Viewer"></iframe>
                         }
                         else
                         {
@@ -205,7 +201,7 @@
                                     }
 
                                     <div class="d-flex gap-2 mt-3">
-                                        @if (isDepartmentHead)
+                                        @if (isDepartmentHead || isOwner)
                                         {
                                             <a href="/syllabi/versions/@version.Id/download" class="btn btn-sm btn-outline-secondary" title="Download">
                                                 <i class="bi bi-download"></i>
@@ -242,15 +238,15 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg">
                     <div class="modal-header border-bottom-0">
-                        <h5 class="modal-title">Approve Syllabus</h5>
+                        <h5 class="modal-title">Accept Syllabus</h5>
                         <button type="button" class="btn-close" @onclick="() => showApproveModal = false" disabled="@isProcessing"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Are you sure you want to approve this syllabus? It will become immediately visible to all students.</p>
+                        <p>Are you sure you want to accept this syllabus? It will become immediately visible to all students.</p>
                     </div>
                     <div class="modal-footer border-top-0">
                         <button type="button" class="btn btn-outline-secondary" @onclick="() => showApproveModal = false" disabled="@isProcessing">Cancel</button>
-                        <button type="button" class="btn btn-success" @onclick="ConfirmApproveAsync" disabled="@isProcessing">Approve</button>
+                        <button type="button" class="btn btn-success" @onclick="ConfirmApproveAsync" disabled="@isProcessing">Accept</button>
                     </div>
                 </div>
             </div>
@@ -306,6 +302,9 @@
     [Parameter]
     public Guid Id { get; set; }
 
+    [SupplyParameterFromQuery]
+    public string? Action { get; set; }
+
     private SyllabusDocument? document;
     private ApplicationUser? currentUser;
     private bool isLoading = true;
@@ -341,6 +340,7 @@
         if (currentUser is null) return;
 
         await LoadDocumentAsync();
+        ApplyRequestedReviewAction();
     }
 
     private async Task LoadDocumentAsync()
@@ -425,6 +425,23 @@
     {
         rejectRemarks = string.Empty;
         showRejectModal = true;
+    }
+
+    private void ApplyRequestedReviewAction()
+    {
+        if (!canReview || string.IsNullOrWhiteSpace(Action))
+        {
+            return;
+        }
+
+        if (Action.Equals("approve", StringComparison.OrdinalIgnoreCase) || Action.Equals("accept", StringComparison.OrdinalIgnoreCase))
+        {
+            showApproveModal = true;
+        }
+        else if (Action.Equals("reject", StringComparison.OrdinalIgnoreCase))
+        {
+            InitiateReject();
+        }
     }
 
     private async Task ConfirmApproveAsync()

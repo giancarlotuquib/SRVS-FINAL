@@ -94,10 +94,19 @@
                                     }
                                 </td>
                                 <td class="text-end text-nowrap">
-                                    <a class="btn btn-primary btn-sm me-2" href="@GetActionHref(item)">@GetActionLabel(item.Status)</a>
-                                    @if (item.CanDownload && !IsReviewSubmissionsPage && currentUser?.Role == UserRoleType.DepartmentHead)
+                                    @if (IsReviewSubmissionsPage)
                                     {
-                                        <a class="btn btn-outline-secondary btn-sm" href="/syllabi/@item.Id/download" target="_blank" title="Download Current Version"><i class="bi bi-download"></i></a>
+                                        <a class="btn btn-outline-primary btn-sm me-2" href="/syllabi/@item.Id">Review PDF</a>
+                                        <a class="btn btn-success btn-sm me-2" href="/syllabi/@item.Id?action=accept">Accept</a>
+                                        <a class="btn btn-danger btn-sm" href="/syllabi/@item.Id?action=reject">Reject</a>
+                                    }
+                                    else
+                                    {
+                                        <a class="btn btn-primary btn-sm me-2" href="@GetActionHref(item)">@GetActionLabel(item.Status)</a>
+                                        @if (item.CanDownload && currentUser?.Role == UserRoleType.DepartmentHead)
+                                        {
+                                            <a class="btn btn-outline-secondary btn-sm" href="/syllabi/@item.Id/download" target="_blank" title="Download Current Version"><i class="bi bi-download"></i></a>
+                                        }
                                     }
                                 </td>
                             </tr>
@@ -228,7 +237,7 @@
     {
         if (IsReviewSubmissionsPage)
         {
-            return "Accept / Reject";
+            return "Review PDF";
         }
 
         if (IsDepartmentHeadRepositoryPage)
@@ -248,12 +257,12 @@
     {
         if (IsFacultyDraftsPage && item.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
         {
-            return $"/educator/upload?documentId={item.Id}";
+            return $"/syllabi/{item.Id}";
         }
 
         if (IsFacultyReviewPage && item.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
         {
-            return $"/educator/upload?documentId={item.Id}";
+            return $"/syllabi/{item.Id}";
         }
 
         if (IsReviewSubmissionsPage)

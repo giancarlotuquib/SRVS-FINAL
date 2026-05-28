@@ -99,8 +99,10 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "Invalid role selected." });
             }
 
+            var normalizedSchoolId = request.SchoolId ?? string.Empty;
+
             // Check for existing InstitutionalId (SchoolId)
-            var existingUserById = await userManager.Users.FirstOrDefaultAsync(u => u.InstitutionalId == request.SchoolId);
+            var existingUserById = await userManager.Users.FirstOrDefaultAsync(u => u.InstitutionalId == normalizedSchoolId);
             if (existingUserById != null)
             {
                 return Results.Conflict(new { error = "A user with this School ID already exists." });
@@ -117,7 +119,7 @@ public static class AuthEndpoints
                 UserName = request.Email,
                 Email = request.Email,
                 FullName = $"{request.FirstName} {request.LastName}".Trim(),
-                InstitutionalId = request.SchoolId,
+                InstitutionalId = normalizedSchoolId,
                 Role = request.Role,
                 AccountStatus = UserAccountStatus.PendingApproval,
                 EmailConfirmed = true
@@ -130,8 +132,8 @@ public static class AuthEndpoints
                 var registrationRequest = new RegistrationRequest
                 {
                     FullName = user.FullName,
-                    Email = user.Email,
-                    InstitutionalId = user.InstitutionalId,
+                    Email = request.Email,
+                    InstitutionalId = normalizedSchoolId,
                     RequestedRole = user.Role,
                     Status = RegistrationStatus.Pending,
                     CreatedAtUtc = DateTimeOffset.UtcNow

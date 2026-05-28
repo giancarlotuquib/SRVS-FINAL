@@ -126,8 +126,8 @@
                                             <button class="btn btn-outline-primary" @onclick="() => ViewSyllabus(syllabus)" title="View">
                                                 View
                                             </button>
-                                            <button class="btn btn-outline-success" @onclick="() => OpenApproveDialog(syllabus)" title="Approve">
-                                                Approve
+                                            <button class="btn btn-outline-success" @onclick="() => OpenApproveDialog(syllabus)" title="Accept">
+                                                Accept
                                             </button>
                                             <button class="btn btn-outline-danger" @onclick="() => OpenRejectDialog(syllabus)" title="Reject">
                                                 Reject
@@ -193,8 +193,8 @@
                                             </button>
                                             @if (syllabus.Status == SyllabusStatus.Submitted)
                                             {
-                                                <button class="btn btn-outline-success" @onclick="() => OpenApproveDialogFromAll(syllabus)" title="Approve">
-                                                    Approve
+                                                <button class="btn btn-outline-success" @onclick="() => OpenApproveDialogFromAll(syllabus)" title="Accept">
+                                                    Accept
                                                 </button>
                                                 <button class="btn btn-outline-danger" @onclick="() => OpenRejectDialogFromAll(syllabus)" title="Reject">
                                                     Reject
@@ -219,11 +219,11 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Approve Syllabus</h5>
+                    <h5 class="modal-title">Accept Syllabus</h5>
                     <button type="button" class="btn-close" @onclick="CloseApproveDialog"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to approve this syllabus?</p>
+                    <p>Are you sure you want to accept this syllabus?</p>
                     @if (selectedSyllabus != null)
                     {
                         <p><strong>@selectedSyllabus.CourseTitle</strong> by @selectedSyllabus.FacultyName</p>
@@ -236,7 +236,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseApproveDialog">Cancel</button>
                     <button type="button" class="btn btn-success" @onclick="ApproveSyllabus" disabled="@isProcessing">
-                        @(isProcessing ? "Processing..." : "Approve")
+                        @(isProcessing ? "Processing..." : "Accept")
                     </button>
                 </div>
             </div>
@@ -348,7 +348,6 @@
     private SyllabusPendingResponse? selectedSyllabus;
     private SyllabusPendingResponse? viewingSyllabus;
     private SyllabusListResponse? selectedSyllabusFromAll;
-    private SyllabusListResponse? viewingSyllabusFromAll;
     private int? statusFilter = null;
     private System.Timers.Timer? refreshTimer;
 
@@ -479,7 +478,6 @@
     {
         showViewPanel = false;
         viewingSyllabus = null;
-        viewingSyllabusFromAll = null;
     }
 
     private void DownloadSyllabus()
@@ -535,7 +533,7 @@
             
             if (response.IsSuccessStatusCode)
             {
-                successMessage = $"✓ Syllabus '{selectedSyllabus.CourseTitle}' approved successfully.";
+                successMessage = $"Syllabus '{selectedSyllabus.CourseTitle}' accepted successfully.";
                 await LoadPendingSyllabiAsync();
                 if (statusFilter.HasValue || allSyllabi.Count > 0)
                 {
@@ -606,7 +604,7 @@
             
             if (response.IsSuccessStatusCode)
             {
-                successMessage = $"✓ Syllabus '{selectedSyllabus.CourseTitle}' rejected successfully.";
+                successMessage = $"Syllabus '{selectedSyllabus.CourseTitle}' rejected successfully.";
                 await LoadPendingSyllabiAsync();
                 if (statusFilter.HasValue || allSyllabi.Count > 0)
                 {

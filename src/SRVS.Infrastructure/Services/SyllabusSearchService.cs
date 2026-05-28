@@ -87,7 +87,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
     {
         return departmentId is null
             ? query.Where(document => document.OwnerUserId == userId)
-            : query.Where(document => document.OwnerUserId == userId || (document.DepartmentId == departmentId.Value && document.Status == SyllabusStatus.Approved && document.IsPublished));
+            : query.Where(document => document.OwnerUserId == userId || document.DepartmentId == departmentId.Value);
     }
 
     private static IReadOnlyList<SyllabusDocument> ApplySearchFilters(IEnumerable<SyllabusDocument> documents, SyllabusSearchRequest request)

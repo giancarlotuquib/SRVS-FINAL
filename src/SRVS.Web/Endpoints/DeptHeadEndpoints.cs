@@ -28,7 +28,7 @@ public static class DeptHeadEndpoints
                     Id = u.Id,
                     FullName = u.FullName,
                     SchoolId = u.InstitutionalId,
-                    Email = u.Email,
+                    Email = u.Email ?? string.Empty,
                     Department = dbContext.Departments.Where(d => d.Id == u.DepartmentId).Select(d => d.Name).FirstOrDefault() ?? string.Empty,
                     AssignedSyllabusId = dbContext.SyllabusAssignments.Where(a => a.StudentId == u.Id && a.IsActive).Select(a => a.SyllabusId).FirstOrDefault(),
                     AssignedSyllabusTitle = dbContext.SyllabusAssignments
