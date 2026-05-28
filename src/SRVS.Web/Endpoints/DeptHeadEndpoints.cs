@@ -20,9 +20,8 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
             var students = await dbContext.Users
-                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.DepartmentId.HasValue && departmentIds.Contains(u.DepartmentId.Value) && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
                 .Select(u => new StudentResponse
                 {
                     Id = u.Id,
@@ -210,17 +209,21 @@ public static class DeptHeadEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
-            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
-
             // Validate student
             var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == request.StudentId);
             if (student is null) return Results.BadRequest(new { error = "Student not found." });
-            if (!student.DepartmentId.HasValue || !departmentIds.Contains(student.DepartmentId.Value)) return Results.Forbid();
+            if (student.Role != SRVS.Domain.Enums.UserRoleType.Viewer || student.AccountStatus != SRVS.Domain.Enums.UserAccountStatus.Active)
+            {
+                return Results.BadRequest(new { error = "Student is not an active student account." });
+            }
 
             // Validate syllabus
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
             if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
-            if (!departmentIds.Contains(syllabus.DepartmentId)) return Results.Forbid();
+            if (syllabus.Status is not (SRVS.Domain.Enums.SyllabusStatus.Approved or SRVS.Domain.Enums.SyllabusStatus.Submitted))
+            {
+                return Results.BadRequest(new { error = "Only approved or submitted syllabi can be assigned." });
+            }
 
             using var tx = await dbContext.Database.BeginTransactionAsync();
             try
@@ -272,13 +275,16 @@ public static class DeptHeadEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
-            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
-
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
             if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
-            if (!departmentIds.Contains(syllabus.DepartmentId)) return Results.Forbid();
+            if (syllabus.Status is not (SRVS.Domain.Enums.SyllabusStatus.Approved or SRVS.Domain.Enums.SyllabusStatus.Submitted))
+            {
+                return Results.BadRequest(new { error = "Only approved or submitted syllabi can be assigned." });
+            }
 
-            var students = await dbContext.Users.Where(u => request.StudentIds.Contains(u.Id) && u.DepartmentId.HasValue && departmentIds.Contains(u.DepartmentId.Value)).ToListAsync();
+            var students = await dbContext.Users
+                .Where(u => request.StudentIds.Contains(u.Id) && u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .ToListAsync();
 
             using var tx = await dbContext.Database.BeginTransactionAsync();
             try
