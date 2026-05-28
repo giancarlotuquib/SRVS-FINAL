@@ -94,7 +94,7 @@
                                         <div class="text-secondary small">@request.Email</div>
                                     </td>
                                     <td class="fw-semibold">@request.InstitutionalId</td>
-                                    <td><span class="badge text-bg-light">@request.RequestedRole</span></td>
+                                    <td><span class="badge text-bg-light">@GetRoleLabel(request.RequestedRole)</span></td>
                                     <td>@(request.Department?.Code ?? "N/A")</td>
                                     <td class="text-secondary small">@request.CreatedAtUtc.ToLocalTime().ToString("g")</td>
                                     <td>
@@ -262,6 +262,15 @@
         RegistrationStatus.Approved => "text-bg-success text-white",
         RegistrationStatus.Rejected => "text-bg-danger text-white",
         _ => "text-bg-secondary"
+    };
+
+    private static string GetRoleLabel(UserRoleType role) => role switch
+    {
+        UserRoleType.DepartmentHead => "Department Head",
+        UserRoleType.Educator => "Faculty",
+        UserRoleType.Viewer => "Student",
+        UserRoleType.Admin => "Admin",
+        _ => role.ToString()
     };
 
     private async Task ApproveRequestAsync(RegistrationRequest request)

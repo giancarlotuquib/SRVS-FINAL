@@ -20,9 +20,9 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var deptId = user.DepartmentId;
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
             var students = await dbContext.Users
-                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.DepartmentId == deptId && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.DepartmentId.HasValue && departmentIds.Contains(u.DepartmentId.Value) && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
                 .Select(u => new StudentResponse
                 {
                     Id = u.Id,
@@ -54,10 +54,10 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var deptId = user.DepartmentId;
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
 
             var query = dbContext.SyllabusDocuments
-                .Where(s => s.DepartmentId == deptId && !string.IsNullOrEmpty(s.OwnerUserId));
+                .Where(s => departmentIds.Contains(s.DepartmentId) && !string.IsNullOrEmpty(s.OwnerUserId));
 
             if (status.HasValue)
             {
@@ -89,7 +89,8 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
-            var deptId = user.DepartmentId;
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
+            var primaryDepartmentId = departmentIds.FirstOrDefault();
 
             // Debug: Get all syllabi in the system
             var allSyllabi = await dbContext.SyllabusDocuments
@@ -98,12 +99,12 @@ public static class DeptHeadEndpoints
 
             // Debug: Get syllabi in the specific department
             var allSyllabiInDept = await dbContext.SyllabusDocuments
-                .Where(s => s.DepartmentId == deptId)
+                .Where(s => departmentIds.Contains(s.DepartmentId))
                 .Select(s => new { s.Id, s.CourseCode, s.Status, s.OwnerUserId })
                 .ToListAsync();
 
             var pendingSyllabi = await dbContext.SyllabusDocuments
-                .Where(s => s.DepartmentId == deptId && s.Status == SRVS.Domain.Enums.SyllabusStatus.Submitted && !string.IsNullOrEmpty(s.OwnerUserId))
+                .Where(s => s.Status == SRVS.Domain.Enums.SyllabusStatus.Submitted && !string.IsNullOrEmpty(s.OwnerUserId))
                 .OrderByDescending(s => s.SubmittedAtUtc ?? s.UpdatedAtUtc)
                 .Select(s => new SyllabusPendingResponse
                 {
@@ -120,7 +121,7 @@ public static class DeptHeadEndpoints
                 .ToListAsync();
 
             return Results.Ok(new { 
-                DepartmentId = deptId,
+                DepartmentId = primaryDepartmentId,
                 TotalSyllabiInSystem = allSyllabi.Count,
                 AllSyllabiInSystem = allSyllabi,
                 TotalSyllabiInDept = allSyllabiInDept.Count,
@@ -136,9 +137,9 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == syllabusId);
             if (syllabus is null) return Results.NotFound(new { error = "Syllabus not found." });
-            if (syllabus.DepartmentId != user.DepartmentId) return Results.Forbid();
             
             // Only Submitted status can be approved
             if (syllabus.Status != SRVS.Domain.Enums.SyllabusStatus.Submitted)
@@ -172,9 +173,9 @@ public static class DeptHeadEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == syllabusId);
             if (syllabus is null) return Results.NotFound(new { error = "Syllabus not found." });
-            if (syllabus.DepartmentId != user.DepartmentId) return Results.Forbid();
             
             // Only Submitted status can be rejected
             if (syllabus.Status != SRVS.Domain.Enums.SyllabusStatus.Submitted)
@@ -211,16 +212,17 @@ public static class DeptHeadEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
 
             // Validate student
             var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == request.StudentId);
             if (student is null) return Results.BadRequest(new { error = "Student not found." });
-            if (student.DepartmentId != user.DepartmentId) return Results.Forbid();
+            if (!student.DepartmentId.HasValue || !departmentIds.Contains(student.DepartmentId.Value)) return Results.Forbid();
 
             // Validate syllabus
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
             if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
-            if (syllabus.DepartmentId != user.DepartmentId) return Results.Forbid();
+            if (!departmentIds.Contains(syllabus.DepartmentId)) return Results.Forbid();
 
             using var tx = await dbContext.Database.BeginTransactionAsync();
             try
@@ -272,12 +274,13 @@ public static class DeptHeadEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+            var departmentIds = await GetDepartmentHeadDepartmentIdsAsync(dbContext, user);
 
             var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
             if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
-            if (syllabus.DepartmentId != user.DepartmentId) return Results.Forbid();
+            if (!departmentIds.Contains(syllabus.DepartmentId)) return Results.Forbid();
 
-            var students = await dbContext.Users.Where(u => request.StudentIds.Contains(u.Id) && u.DepartmentId == user.DepartmentId).ToListAsync();
+            var students = await dbContext.Users.Where(u => request.StudentIds.Contains(u.Id) && u.DepartmentId.HasValue && departmentIds.Contains(u.DepartmentId.Value)).ToListAsync();
 
             using var tx = await dbContext.Database.BeginTransactionAsync();
             try
@@ -488,5 +491,26 @@ public static class DeptHeadEndpoints
 
             return Results.Ok(syllabi);
         });
+    }
+
+    private static async Task<IReadOnlyCollection<Guid>> GetDepartmentHeadDepartmentIdsAsync(ApplicationDbContext dbContext, ApplicationUser user)
+    {
+        var departmentIds = new HashSet<Guid>();
+        if (user.DepartmentId.HasValue)
+        {
+            departmentIds.Add(user.DepartmentId.Value);
+        }
+
+        var assignedDepartmentIds = await dbContext.UserDepartments
+            .Where(item => item.UserId == user.Id)
+            .Select(item => item.DepartmentId)
+            .ToListAsync();
+
+        foreach (var departmentId in assignedDepartmentIds)
+        {
+            departmentIds.Add(departmentId);
+        }
+
+        return departmentIds;
     }
 }

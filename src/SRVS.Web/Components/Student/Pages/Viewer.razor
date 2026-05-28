@@ -356,13 +356,14 @@
 
             if (document is not null)
             {
-                isDepartmentHead = currentUser!.Role == UserRoleType.DepartmentHead && currentUser.DepartmentId == document.DepartmentId;
+                var departmentHeadHasAccess = await DepartmentHeadHasAccessAsync(dbContext, document.DepartmentId);
+                isDepartmentHead = currentUser!.Role == UserRoleType.DepartmentHead && (document.Status == SyllabusStatus.Submitted || departmentHeadHasAccess);
                 isOwner = currentUser.Id == document.OwnerUserId;
-                canReview = SyllabusAccessPolicy.CanReview(document, currentUser.Role, currentUser.DepartmentId);
+                canReview = document.Status == SyllabusStatus.Submitted && currentUser.Role == UserRoleType.DepartmentHead;
                 canSubmit = SyllabusAccessPolicy.CanSubmit(document, currentUser.Role, currentUser.DepartmentId, currentUser.Id);
                 canRevise = SyllabusAccessPolicy.CanRevise(document, currentUser.Role, currentUser.DepartmentId, currentUser.Id);
 
-                if (!SyllabusAccessPolicy.CanView(document, currentUser.Role, currentUser.DepartmentId, currentUser.Id))
+                if (!CanCurrentUserViewDocument(departmentHeadHasAccess))
                 {
                     document = null;
                     canReview = false;
@@ -375,6 +376,40 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task<bool> DepartmentHeadHasAccessAsync(ApplicationDbContext dbContext, Guid documentDepartmentId)
+    {
+        if (currentUser?.Role != UserRoleType.DepartmentHead)
+        {
+            return false;
+        }
+
+        if (currentUser.DepartmentId == documentDepartmentId)
+        {
+            return true;
+        }
+
+        return await dbContext.UserDepartments.AnyAsync(item =>
+            item.UserId == currentUser.Id &&
+            item.DepartmentId == documentDepartmentId);
+    }
+
+    private bool CanCurrentUserViewDocument(bool departmentHeadHasAccess)
+    {
+        if (currentUser is null || document is null)
+        {
+            return false;
+        }
+
+        return currentUser.Role switch
+        {
+            UserRoleType.Admin => true,
+            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || departmentHeadHasAccess,
+            UserRoleType.Educator => document.OwnerUserId == currentUser.Id,
+            UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
+            _ => false
+        };
     }
 
     private string GetStatusBadgeClass(SyllabusStatus status) => status switch

@@ -64,10 +64,8 @@ public static class AuthEndpoints
         // Register
         authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
-            // Normalise SchoolId: trim whitespace and remove non-digits
+            // Normalise SchoolId: trim whitespace. The validator enforces digit-only input.
             request.SchoolId = request.SchoolId?.Trim() ?? string.Empty;
-            var digitsOnly = new string(request.SchoolId.Where(char.IsDigit).ToArray());
-            request.SchoolId = digitsOnly;
 
             // Do not allow Admin self-registration
             if (request.Role == UserRoleType.Admin)
@@ -75,28 +73,14 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "Admin accounts cannot be self-registered." });
             }
 
-            // Strict validation: enforce digit count per role
-            var idLen = request.SchoolId?.Length ?? 0;
-            
-            if (request.Role == UserRoleType.Viewer)
-            {
-                // Students MUST use exactly 10 digits
-                if (idLen != 10)
-                {
-                    return Results.BadRequest(new { error = "Students must use a 10-digit School ID." });
-                }
-            }
-            else if (request.Role == UserRoleType.DepartmentHead || request.Role == UserRoleType.Educator)
-            {
-                // DeptHead and Faculty MUST use exactly 5 digits
-                if (idLen != 5)
-                {
-                    return Results.BadRequest(new { error = "Department Head and Faculty must use a 5-digit School ID." });
-                }
-            }
-            else
+            if (request.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Viewer))
             {
                 return Results.BadRequest(new { error = "Invalid role selected." });
+            }
+
+            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
+            {
+                return Results.BadRequest(new { error = GetSchoolIdValidationMessage(request.Role) });
             }
 
             var normalizedSchoolId = request.SchoolId ?? string.Empty;
@@ -228,4 +212,12 @@ public static class AuthEndpoints
             return Results.Ok(new { user.Id, user.Email, user.FullName, user.InstitutionalId, user.Role, user.AccountStatus });
         }).RequireAuthorization();
     }
+
+    private static string GetSchoolIdValidationMessage(UserRoleType role) => role switch
+    {
+        UserRoleType.Viewer => "Students must use a 10-digit School ID.",
+        UserRoleType.Educator => "Faculty must use a 5-digit School ID.",
+        UserRoleType.DepartmentHead => "Department Heads must use a 5-digit School ID.",
+        _ => "Invalid role selected."
+    };
 }

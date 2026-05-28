@@ -30,5 +30,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
 		// Add index to speed up DeptHead lookups for syllabi by DepartmentId + Status
 		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => new { s.DepartmentId, s.Status });
+
+		modelBuilder.Entity<SyllabusAssignment>(entity =>
+		{
+			entity.Property(item => item.StudentId).HasMaxLength(450);
+			entity.Property(item => item.AssignedBy).HasMaxLength(450);
+			entity.HasIndex(item => new { item.StudentId, item.IsActive });
+			entity.HasIndex(item => item.SyllabusId);
+			entity.HasIndex(item => item.AssignedBy);
+			entity.HasOne<ApplicationUser>()
+				.WithMany()
+				.HasForeignKey(item => item.StudentId)
+				.OnDelete(DeleteBehavior.Cascade);
+			entity.HasOne<ApplicationUser>()
+				.WithMany()
+				.HasForeignKey(item => item.AssignedBy)
+				.OnDelete(DeleteBehavior.NoAction);
+			entity.HasOne<SyllabusDocument>()
+				.WithMany()
+				.HasForeignKey(item => item.SyllabusId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
 	}
 }

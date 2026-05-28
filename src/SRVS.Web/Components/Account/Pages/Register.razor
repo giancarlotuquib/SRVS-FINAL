@@ -2,8 +2,8 @@
 
 @using System.ComponentModel.DataAnnotations
 @using System.Net.Http.Json
-@using System.Linq
 @using SyllabusRepository.DTOs
+@using SRVS.Application.Services
 @using SRVS.Domain.Enums
 
 @inject HttpClient Http
@@ -64,11 +64,11 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="RegisterInput.Role">Role</label>
-                            <select id="RegisterInput.Role" class="form-select" @bind="selectedRole">
-                                <option value="1">Department Head</option>
-                                <option value="2">Faculty</option>
-                                <option value="3">Student</option>
-                            </select>
+                            <InputSelect id="RegisterInput.Role" class="form-select" @bind-Value="RegisterInput.Role">
+                                <option value="@UserRoleType.DepartmentHead">Department Head</option>
+                                <option value="@UserRoleType.Educator">Faculty</option>
+                                <option value="@UserRoleType.Viewer">Student</option>
+                            </InputSelect>
                             <ValidationMessage For="() => RegisterInput.Role" class="text-danger small" />
                         </div>
 
@@ -116,17 +116,16 @@
     private bool isSubmitting;
     private bool showSuccessMessage;
     private string? errorMessage;
-    private int selectedRole;
 
     [SupplyParameterFromForm]
     private RegisterRequest RegisterInput { get; set; } = default!;
 
     protected override void OnInitialized()
     {
-        RegisterInput ??= new RegisterRequest();
-        // default to Department Head for the role dropdown
-        RegisterInput.Role = UserRoleType.DepartmentHead;
-        selectedRole = (int)RegisterInput.Role;
+        RegisterInput ??= new RegisterRequest
+        {
+            Role = UserRoleType.DepartmentHead
+        };
     }
 
     private async Task RegisterUser()
@@ -136,34 +135,17 @@
         showSuccessMessage = false;
         try
         {
-            // Ensure RegisterInput.Role matches selectedRole
-            RegisterInput.Role = (UserRoleType)selectedRole;
+            RegisterInput.SchoolId = RegisterInput.SchoolId?.Trim() ?? string.Empty;
 
-            // Trim SchoolId and keep only digits
-            var raw = RegisterInput.SchoolId ?? string.Empty;
-            var digitsOnly = new string(raw.Where(char.IsDigit).ToArray());
-            RegisterInput.SchoolId = digitsOnly;
-
-            // Strict validation based on selected role
-            if (RegisterInput.Role == UserRoleType.Viewer) // Student
-            {
-                if (RegisterInput.SchoolId.Length != 10)
-                {
-                    errorMessage = "Students must use a 10-digit School ID.";
-                    return;
-                }
-            }
-            else if (RegisterInput.Role == UserRoleType.DepartmentHead || RegisterInput.Role == UserRoleType.Educator) // DeptHead or Faculty
-            {
-                if (RegisterInput.SchoolId.Length != 5)
-                {
-                    errorMessage = "Department Head and Faculty must use a 5-digit School ID.";
-                    return;
-                }
-            }
-            else
+            if (RegisterInput.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Viewer))
             {
                 errorMessage = "Please select a valid role.";
+                return;
+            }
+
+            if (!InstitutionalIdRules.IsValid(RegisterInput.Role, RegisterInput.SchoolId))
+            {
+                errorMessage = GetSchoolIdValidationMessage(RegisterInput.Role);
                 return;
             }
 
@@ -171,7 +153,7 @@
             if (response.IsSuccessStatusCode)
             {
                 showSuccessMessage = true;
-                RegisterInput = new RegisterRequest(); // clear fields
+                ResetRegisterForm();
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
@@ -198,5 +180,19 @@
         }
     }
 
-    
+    private void ResetRegisterForm()
+    {
+        RegisterInput = new RegisterRequest
+        {
+            Role = UserRoleType.DepartmentHead
+        };
+    }
+
+    private static string GetSchoolIdValidationMessage(UserRoleType role) => role switch
+    {
+        UserRoleType.Viewer => "Students must use a 10-digit School ID.",
+        UserRoleType.Educator => "Faculty must use a 5-digit School ID.",
+        UserRoleType.DepartmentHead => "Department Heads must use a 5-digit School ID.",
+        _ => "Please select a valid role."
+    };
 }

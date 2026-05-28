@@ -13,8 +13,9 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
     public async Task<SyllabusSearchResults> SearchAsync(SyllabusSearchRequest request, UserRoleType role, Guid? departmentId, string userId, CancellationToken cancellationToken = default)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var departmentIds = await GetAccessibleDepartmentIdsAsync(dbContext, role, departmentId, userId, cancellationToken);
 
-        var documents = await BuildScopedQuery(dbContext, role, departmentId, userId)
+        var documents = await BuildScopedQuery(dbContext, role, departmentIds, userId, request.Status)
             .Include(document => document.Department)
             .ToListAsync(cancellationToken);
 
@@ -37,7 +38,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
                 document.InstructorName,
                 document.CurrentVersionNumber,
                 document.Status,
-                SyllabusAccessPolicy.CanDownload(document, role, departmentId, userId),
+                CanAccessDocument(document, role, departmentIds, userId, requirePublishedForViewer: true),
                 GetVisibilityLabel(document, role),
                 document.LatestChangeSummary))
             .ToList();
@@ -53,41 +54,78 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
             .Include(item => item.Department)
             .FirstOrDefaultAsync(item => item.Id == syllabusDocumentId, cancellationToken);
 
-        return document is not null && SyllabusAccessPolicy.CanView(document, role, departmentId, userId) ? document : null;
+        if (document is null)
+        {
+            return null;
+        }
+
+        var departmentIds = await GetAccessibleDepartmentIdsAsync(dbContext, role, departmentId, userId, cancellationToken);
+        return CanAccessDocument(document, role, departmentIds, userId, requirePublishedForViewer: true) ? document : null;
     }
 
-    private static IQueryable<SyllabusDocument> BuildScopedQuery(ApplicationDbContext dbContext, UserRoleType role, Guid? departmentId, string userId)
+    private static IQueryable<SyllabusDocument> BuildScopedQuery(ApplicationDbContext dbContext, UserRoleType role, IReadOnlyCollection<Guid> departmentIds, string userId, SyllabusStatus? statusFilter)
     {
-        var ceDepartment = dbContext.Departments
-            .FirstOrDefault(d => d.Code == "CE" || d.Name.Contains("Computer Engineering"));
-
         var query = dbContext.SyllabusDocuments.AsQueryable();
-        var effectiveDepartmentId = departmentId ?? ceDepartment?.Id;
 
         return role switch
         {
             UserRoleType.Admin => query,
-            UserRoleType.DepartmentHead => ApplyDepartmentScope(query, effectiveDepartmentId),
-            UserRoleType.Educator => ApplyEducatorScope(query, effectiveDepartmentId, userId),
-            UserRoleType.Viewer => ApplyDepartmentScope(query, effectiveDepartmentId)
+            UserRoleType.DepartmentHead when statusFilter == SyllabusStatus.Submitted => query,
+            UserRoleType.DepartmentHead => ApplyDepartmentScope(query, departmentIds),
+            UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId),
+            UserRoleType.Viewer => ApplyDepartmentScope(query, departmentIds)
                 .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished),
-            _ => ApplyDepartmentScope(query, effectiveDepartmentId)
+            _ => ApplyDepartmentScope(query, departmentIds)
                 .Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
         };
     }
 
-    private static IQueryable<SyllabusDocument> ApplyDepartmentScope(IQueryable<SyllabusDocument> query, Guid? departmentId)
+    private static IQueryable<SyllabusDocument> ApplyDepartmentScope(IQueryable<SyllabusDocument> query, IReadOnlyCollection<Guid> departmentIds)
     {
-        return departmentId is null
+        return departmentIds.Count == 0
             ? query
-            : query.Where(document => document.DepartmentId == departmentId.Value);
+            : query.Where(document => departmentIds.Contains(document.DepartmentId));
     }
 
-    private static IQueryable<SyllabusDocument> ApplyEducatorScope(IQueryable<SyllabusDocument> query, Guid? departmentId, string userId)
+    private static async Task<IReadOnlyCollection<Guid>> GetAccessibleDepartmentIdsAsync(ApplicationDbContext dbContext, UserRoleType role, Guid? departmentId, string userId, CancellationToken cancellationToken)
     {
-        return departmentId is null
-            ? query.Where(document => document.OwnerUserId == userId)
-            : query.Where(document => document.OwnerUserId == userId || document.DepartmentId == departmentId.Value);
+        if (role == UserRoleType.Educator)
+        {
+            return [];
+        }
+
+        var departmentIds = new HashSet<Guid>();
+        if (departmentId.HasValue)
+        {
+            departmentIds.Add(departmentId.Value);
+        }
+
+        if (role == UserRoleType.DepartmentHead)
+        {
+            var assignedDepartments = await dbContext.UserDepartments
+                .Where(item => item.UserId == userId)
+                .Select(item => item.DepartmentId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var assignedDepartmentId in assignedDepartments)
+            {
+                departmentIds.Add(assignedDepartmentId);
+            }
+        }
+
+        return departmentIds;
+    }
+
+    private static bool CanAccessDocument(SyllabusDocument document, UserRoleType role, IReadOnlyCollection<Guid> departmentIds, string userId, bool requirePublishedForViewer)
+    {
+        return role switch
+        {
+            UserRoleType.Admin => true,
+            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || departmentIds.Contains(document.DepartmentId),
+            UserRoleType.Educator => document.OwnerUserId == userId,
+            UserRoleType.Viewer => (!requirePublishedForViewer || document.IsPublished) && document.Status == SyllabusStatus.Approved,
+            _ => false
+        };
     }
 
     private static IReadOnlyList<SyllabusDocument> ApplySearchFilters(IEnumerable<SyllabusDocument> documents, SyllabusSearchRequest request)

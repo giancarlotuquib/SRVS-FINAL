@@ -28,7 +28,7 @@ public class SyllabusSearchServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_EducatorSeesDepartmentAndOwnedDocuments()
+    public async Task SearchAsync_EducatorOnlySeesOwnedDocuments()
     {
         await using var factory = await CreateFactoryAsync();
         await using var context = await factory.CreateDbContextAsync();
@@ -38,10 +38,10 @@ public class SyllabusSearchServiceTests
 
         var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Educator, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "educator-1");
 
-        Assert.Equal(3, results.TotalCount);
+        Assert.Equal(2, results.TotalCount);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101");
         Assert.Contains(results.Items, item => item.CourseCode == "CE102");
-        Assert.Contains(results.Items, item => item.CourseCode == "CE103");
+        Assert.DoesNotContain(results.Items, item => item.CourseCode == "CE103");
     }
 
     [Fact]
@@ -59,13 +59,13 @@ public class SyllabusSearchServiceTests
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             "educator-1");
 
-        Assert.Equal(2, results.TotalCount);
+        Assert.Single(results.Items);
         Assert.Contains(results.Items, item => item.CourseCode == "CE102");
-        Assert.Contains(results.Items, item => item.CourseCode == "CE103");
+        Assert.DoesNotContain(results.Items, item => item.CourseCode == "CE103");
     }
 
     [Fact]
-    public async Task GetAccessibleDocumentAsync_EducatorCanOpenSameDepartmentDraft()
+    public async Task GetAccessibleDocumentAsync_EducatorCannotOpenAnotherFacultyDraft()
     {
         await using var factory = await CreateFactoryAsync();
         await using var context = await factory.CreateDbContextAsync();
@@ -78,6 +78,24 @@ public class SyllabusSearchServiceTests
             UserRoleType.Educator,
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             "educator-1");
+
+        Assert.Null(document);
+    }
+
+    [Fact]
+    public async Task GetAccessibleDocumentAsync_DepartmentHeadCanOpenSameDepartmentFacultyDraft()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var document = await service.GetAccessibleDocumentAsync(
+            Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            UserRoleType.DepartmentHead,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "dept-head-1");
 
         Assert.NotNull(document);
         Assert.Equal("CE103", document.CourseCode);
@@ -93,6 +111,10 @@ public class SyllabusSearchServiceTests
         var submittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "CE102");
         submittedDocument.Status = SyllabusStatus.Submitted;
         submittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
+        var otherDepartmentSubmittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "BUS200");
+        otherDepartmentSubmittedDocument.Status = SyllabusStatus.Submitted;
+        otherDepartmentSubmittedDocument.IsPublished = false;
+        otherDepartmentSubmittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
         await context.SaveChangesAsync();
 
         ISyllabusSearchService service = new SyllabusSearchService(factory);
@@ -103,8 +125,34 @@ public class SyllabusSearchServiceTests
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             "dept-head-1");
 
-        Assert.Single(results.Items);
+        Assert.Equal(2, results.Items.Count);
         Assert.Contains(results.Items, item => item.CourseCode == "CE102");
+        Assert.Contains(results.Items, item => item.CourseCode == "BUS200");
+    }
+
+    [Fact]
+    public async Task GetAccessibleDocumentAsync_DepartmentHeadCanOpenSubmittedSyllabusFromAnyDepartment()
+    {
+        await using var factory = await CreateFactoryAsync();
+        await using var context = await factory.CreateDbContextAsync();
+        SeedData(context);
+
+        var otherDepartmentSubmittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "BUS200");
+        otherDepartmentSubmittedDocument.Status = SyllabusStatus.Submitted;
+        otherDepartmentSubmittedDocument.IsPublished = false;
+        otherDepartmentSubmittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync();
+
+        ISyllabusSearchService service = new SyllabusSearchService(factory);
+
+        var document = await service.GetAccessibleDocumentAsync(
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            UserRoleType.DepartmentHead,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "dept-head-1");
+
+        Assert.NotNull(document);
+        Assert.Equal("BUS200", document.CourseCode);
     }
 
     [Fact]
@@ -121,7 +169,7 @@ public class SyllabusSearchServiceTests
     }
 
     [Fact]
-    public void SyllabusAccessPolicy_DepartmentHeadCanReviewSameDepartmentSubmittedSyllabus()
+    public void SyllabusAccessPolicy_DepartmentHeadCanReviewSubmittedSyllabusFromAnyDepartment()
     {
         var document = new SyllabusDocument
         {
@@ -130,7 +178,7 @@ public class SyllabusSearchServiceTests
             OwnerUserId = "educator-1"
         };
 
-        Assert.True(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, document.DepartmentId));
+        Assert.True(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")));
     }
 
     [Fact]

@@ -29,7 +29,6 @@ public class RegisterRequest
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "School ID is required.")]
-    [RegularExpression(@"^(?:\d{5}|\d{10})$", ErrorMessage = "School ID must be exactly 5 digits for Department Head and Faculty, or 10 digits for Student.")]
     [JsonPropertyName("schoolId")]
     public string SchoolId { get; set; } = string.Empty;
 

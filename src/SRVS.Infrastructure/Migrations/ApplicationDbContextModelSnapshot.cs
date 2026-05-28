@@ -391,7 +391,8 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.Property<string>("AssignedBy")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -404,7 +405,8 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.Property<string>("StudentId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<Guid>("SyllabusId")
                         .HasColumnType("uniqueidentifier");
@@ -413,6 +415,12 @@ namespace SRVS.Infrastructure.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedBy");
+
+                    b.HasIndex("SyllabusId");
+
+                    b.HasIndex("StudentId", "IsActive");
 
                     b.ToTable("SyllabusAssignments");
                 });
@@ -790,6 +798,27 @@ namespace SRVS.Infrastructure.Migrations
                         .HasForeignKey("DepartmentId");
 
                     b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("SRVS.Domain.Entities.SyllabusAssignment", b =>
+                {
+                    b.HasOne("SRVS.Web.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedBy")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("SRVS.Web.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRVS.Domain.Entities.SyllabusDocument", null)
+                        .WithMany()
+                        .HasForeignKey("SyllabusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SRVS.Domain.Entities.SyllabusDocument", b =>

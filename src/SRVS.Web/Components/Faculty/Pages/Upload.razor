@@ -62,11 +62,23 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Semester</label>
-                                    <InputText class="form-control" @bind-Value="Input.Semester" disabled="@DocumentId.HasValue" />
+                                    <InputSelect class="form-select" @bind-Value="Input.Semester" disabled="@DocumentId.HasValue">
+                                        <option value="">Select semester</option>
+                                        @foreach (var semester in SemesterOptions)
+                                        {
+                                            <option value="@semester">@semester</option>
+                                        }
+                                    </InputSelect>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Academic Year</label>
-                                    <InputText class="form-control" @bind-Value="Input.AcademicYear" disabled="@DocumentId.HasValue" />
+                                    <InputSelect class="form-select" @bind-Value="Input.AcademicYear" disabled="@DocumentId.HasValue">
+                                        <option value="">Select academic year</option>
+                                        @foreach (var academicYear in AcademicYearOptions)
+                                        {
+                                            <option value="@academicYear">@academicYear</option>
+                                        }
+                                    </InputSelect>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Course Title</label>
@@ -123,6 +135,8 @@
     private ApplicationUser? currentUser;
     private bool isDepartmentHead;
     private string WorkflowLabel => isDepartmentHead ? "Department Head Workflow" : "Faculty Workflow";
+    private static readonly string[] SemesterOptions = ["1st Semester", "2nd Semester", "Summer"];
+    private static readonly string[] AcademicYearOptions = ["2022-2023", "2023-2024", "2024-2025", "2025-2026"];
 
     protected override async Task OnInitializedAsync()
     {

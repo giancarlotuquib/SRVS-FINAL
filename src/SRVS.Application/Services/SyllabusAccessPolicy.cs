@@ -10,8 +10,8 @@ public static class SyllabusAccessPolicy
         return role switch
         {
             UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => IsSameDepartment(document, departmentId),
-            UserRoleType.Educator => document.OwnerUserId == userId || IsSameDepartment(document, departmentId),
+            UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted || IsSameDepartment(document, departmentId),
+            UserRoleType.Educator => document.OwnerUserId == userId,
             UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
             _ => false
         };
@@ -26,7 +26,7 @@ public static class SyllabusAccessPolicy
     {
         return document.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected
             && role is UserRoleType.Educator or UserRoleType.DepartmentHead
-            && (document.OwnerUserId == userId || IsSameDepartment(document, departmentId));
+            && (document.OwnerUserId == userId || (role == UserRoleType.DepartmentHead && IsSameDepartment(document, departmentId)));
     }
 
     public static bool CanRevise(SyllabusDocument document, UserRoleType role, Guid? departmentId, string userId)
@@ -37,8 +37,7 @@ public static class SyllabusAccessPolicy
     public static bool CanReview(SyllabusDocument document, UserRoleType role, Guid? departmentId)
     {
         return role == UserRoleType.DepartmentHead
-            && document.Status == SyllabusStatus.Submitted
-            && IsSameDepartment(document, departmentId);
+            && document.Status == SyllabusStatus.Submitted;
     }
 
     private static bool IsSameDepartment(SyllabusDocument document, Guid? departmentId)
