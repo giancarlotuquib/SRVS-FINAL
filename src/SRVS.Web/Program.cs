@@ -158,7 +158,7 @@ static async Task SeedSrvsDataAsync(WebApplication app)
         var ceDept = new Department 
         { 
             Code = "CE", 
-            Name = "Computer Engineering",
+            Name = "Computer Engineering Department",
             IsActive = true
         };
         dbContext.Departments.Add(ceDept);

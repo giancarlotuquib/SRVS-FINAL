@@ -141,7 +141,7 @@
             ? "Syllabus Repository"
         : IsFacultyReviewPage
             ? "Review Syllabi"
-        : "Computer Engineering Syllabus Repository";
+        : "Computer Engineering Department Syllabus Repository";
 
     private string Eyebrow => IsReviewSubmissionsPage
         ? "Department Head Review Queue"
@@ -151,7 +151,7 @@
             ? "Faculty Repository"
         : IsFacultyReviewPage
             ? "Faculty Syllabus Workspace"
-        : "Computer Engineering Repository";
+        : "Computer Engineering Department Repository";
 
     private string Heading => IsReviewSubmissionsPage
         ? "Review submitted syllabi"
@@ -161,17 +161,17 @@
             ? "Review and submit syllabus drafts"
         : IsFacultyReviewPage
             ? "Review and submit syllabi"
-        : "Search Computer Engineering syllabi";
+        : "Search Computer Engineering Department syllabi";
 
     private string Description => IsReviewSubmissionsPage
-        ? "Review Computer Engineering syllabi submitted for department head approval."
+        ? "Review Computer Engineering Department syllabi submitted for department head approval."
         : IsDepartmentHeadRepositoryPage
-            ? "View the repository of faculty-uploaded Computer Engineering syllabi."
+            ? "View the repository of faculty-uploaded Computer Engineering Department syllabi."
         : IsFacultyDraftsPage
             ? "Open saved draft syllabi to preview the uploaded file, upload revisions, and submit them to the department head review queue."
         : IsFacultyReviewPage
             ? "Open your syllabus drafts and submissions to preview files, compare versions, upload revisions, and submit drafts for review."
-        : "Search Computer Engineering course syllabi based on your role and access permissions.";
+        : "Search Computer Engineering Department course syllabi based on your role and access permissions.";
 
     [SupplyParameterFromQuery]
     public string? Status { get; set; }
@@ -209,7 +209,7 @@
             currentUser.Id);
 
         message = results.TotalCount == 0
-            ? "No Computer Engineering syllabi matched your search terms in your allowed scope."
+            ? "No Computer Engineering Department syllabi matched your search terms in your allowed scope."
             : null;
     }
 

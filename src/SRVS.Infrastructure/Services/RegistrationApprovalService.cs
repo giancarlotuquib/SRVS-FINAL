@@ -35,8 +35,10 @@ public class RegistrationApprovalService(
         }
         else if (callerRole == UserRoleType.Admin)
         {
-            // Admin can approve DepartmentHead and Student (Viewer) registrations
-            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead || r.RequestedRole == UserRoleType.Viewer);
+            // Admin can approve DepartmentHead, Faculty (Educator) and Student (Viewer) registrations
+            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead
+                                     || r.RequestedRole == UserRoleType.Viewer
+                                     || r.RequestedRole == UserRoleType.Educator);
         }
 
         var pending = await query

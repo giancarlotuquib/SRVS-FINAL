@@ -103,7 +103,7 @@
                                     <td class="text-end text-nowrap">
                                         @if (request.Status == RegistrationStatus.Pending)
                                         {
-                                            if ((currentUser?.Role == UserRoleType.Admin && (request.RequestedRole == UserRoleType.DepartmentHead || request.RequestedRole == UserRoleType.Viewer)) ||
+                                            if ((currentUser?.Role == UserRoleType.Admin && (request.RequestedRole == UserRoleType.DepartmentHead || request.RequestedRole == UserRoleType.Viewer || request.RequestedRole == UserRoleType.Educator)) ||
                                                 (currentUser?.Role == UserRoleType.DepartmentHead && request.RequestedRole == UserRoleType.Educator))
                                             {
                                                 <button class="btn btn-outline-success btn-sm me-2" @onclick="() => ApproveRequestAsync(request)" disabled="@isProcessing">Approve</button>
