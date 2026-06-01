@@ -5,7 +5,7 @@ Console.WriteLine("Starting SRVS web project...");
 var psi = new ProcessStartInfo
 {
     FileName = "dotnet",
-    Arguments = "run --project src/SRVS.Web",
+    Arguments = "run --project frontend/SRVS.Web",
     UseShellExecute = false,
     RedirectStandardOutput = true,
     RedirectStandardError = true,
