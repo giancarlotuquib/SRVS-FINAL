@@ -159,13 +159,12 @@
             if (doc is not null)
             {
                 savedDocumentId = doc.Id;
-                if (!SyllabusAccessPolicy.CanRevise(doc, currentUser.Role, currentUser.DepartmentId, currentUser.Id))
+                if (!SyllabusAccessPolicy.CanRevise(doc, currentUser.Role, currentUser.Id))
                 {
                     errorMessage = "You do not have permission to revise this syllabus.";
                 }
                 else
                 {
-                    Input.DepartmentId = doc.DepartmentId;
                     Input.CourseCode = doc.CourseCode;
                     Input.CourseTitle = doc.CourseTitle;
                     Input.AcademicYear = doc.AcademicYear;
@@ -178,31 +177,14 @@
             {
                 DocumentId = null;
                 savedDocumentId = null;
-                if (currentUser.DepartmentId.HasValue)
-                {
-                    Input.DepartmentId = currentUser.DepartmentId.Value;
-                }
-                else
-                {
-                    var defaultDept = await dbContext.Departments.FirstOrDefaultAsync(d => d.IsActive);
-                    if (defaultDept is not null) Input.DepartmentId = defaultDept.Id;
-                }
+
                 Input.InstructorName = currentUser.FullName;
                 errorMessage = "The requested syllabus could not be found. A new draft can still be created.";
             }
         }
         else
         {
-            // Default to user's department
-            if (currentUser.DepartmentId.HasValue)
-            {
-                Input.DepartmentId = currentUser.DepartmentId.Value;
-            }
-            else
-            {
-                var defaultDept = await dbContext.Departments.FirstOrDefaultAsync(d => d.IsActive);
-                if (defaultDept is not null) Input.DepartmentId = defaultDept.Id;
-            }
+
             Input.InstructorName = currentUser.FullName;
         }
 
@@ -245,7 +227,6 @@
             
             var request = new SyllabusDraftUpsertRequest(
                 savedDocumentId,
-                Input.DepartmentId,
                 Input.CourseCode,
                 Input.CourseTitle,
                 Input.AcademicYear,
@@ -314,8 +295,6 @@
 
     private sealed class UploadModel
     {
-        public Guid DepartmentId { get; set; }
-
         [Required(ErrorMessage = "Course Code is required")]
         public string CourseCode { get; set; } = string.Empty;
 

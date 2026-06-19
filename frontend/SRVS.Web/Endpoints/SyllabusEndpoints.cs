@@ -34,7 +34,7 @@ public static class SyllabusEndpoints
                 return Results.Unauthorized();
             }
 
-            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.DepartmentId, user.Id, cancellationToken);
+            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.Id, cancellationToken);
             if (document is null)
             {
                 return Results.NotFound();
@@ -58,7 +58,7 @@ public static class SyllabusEndpoints
                 return Results.Unauthorized();
             }
 
-            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.DepartmentId, user.Id, cancellationToken);
+            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.Id, cancellationToken);
             if (document is null)
             {
                 return Results.NotFound();
@@ -90,7 +90,7 @@ public static class SyllabusEndpoints
 
             if (version is null || version.SyllabusDocument is null) return Results.NotFound();
 
-            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.DepartmentId, user.Id);
+            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.Id);
             if (!hasAccess) return Results.Forbid();
 
             return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: false, cancellationToken);
@@ -115,7 +115,7 @@ public static class SyllabusEndpoints
             if (version is null || version.SyllabusDocument is null) return Results.NotFound();
 
             // Basic permission check - admin, dept head of same dept, or owner
-            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.DepartmentId, user.Id);
+            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.Id);
 
             if (!hasAccess) return Results.Forbid();
 
@@ -147,7 +147,7 @@ public static class SyllabusEndpoints
                 return Results.Unauthorized();
             }
 
-            var results = await syllabusSearchService.SearchAsync(new SyllabusSearchRequest(term, null, maxResults <= 0 ? 100 : maxResults), user.Role, user.DepartmentId, user.Id, cancellationToken);
+            var results = await syllabusSearchService.SearchAsync(new SyllabusSearchRequest(term, null, maxResults <= 0 ? 100 : maxResults), user.Role, user.Id, cancellationToken);
             return Results.Ok(results);
         })
         .WithName("SearchSyllabi");
@@ -169,7 +169,7 @@ public static class SyllabusEndpoints
             
             if (document is null) return Results.NotFound();
 
-            var hasAccess = SyllabusAccessPolicy.CanDownload(document, user.Role, user.DepartmentId, user.Id);
+            var hasAccess = SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id);
             if (!hasAccess) return Results.Forbid();
 
             var versions = document.Versions

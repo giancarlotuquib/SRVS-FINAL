@@ -130,9 +130,9 @@ app.MapAuthEndpoints();
 app.MapAdminEndpoints();
 app.MapSyllabusEndpoints();
 app.MapDeptHeadEndpoints();
-app.MapCoursesEndpoints();
-app.MapFacultyEndpoints();
-app.MapStudentEndpoints();
+// app.MapCoursesEndpoints();
+// app.MapFacultyEndpoints();
+// app.MapStudentEndpoints();
 // app.MapProgramEndpoints();
 // app.MapDepartmentEndpoints();
 // app.MapUserEndpoints();
@@ -152,57 +152,7 @@ static async Task SeedSrvsDataAsync(WebApplication app)
     var dbContext = services.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    if (!await dbContext.Departments.AnyAsync())
-    {
-        // Create only Computer Engineering department
-        var ceDept = new Department 
-        { 
-            Code = "CE", 
-            Name = "Computer Engineering Department",
-            IsActive = true
-        };
-        dbContext.Departments.Add(ceDept);
-        await dbContext.SaveChangesAsync();
 
-        // Add sample Computer Engineering courses
-        var courses = new[]
-        {
-            new CourseAssignment 
-            { 
-                DepartmentId = ceDept.Id, 
-                CourseCode = "CE101", 
-                CourseTitle = "Introduction to Computer Engineering",
-                InstructorName = "Faculty Member",
-                IsActive = true
-            },
-            new CourseAssignment 
-            { 
-                DepartmentId = ceDept.Id, 
-                CourseCode = "CE201", 
-                CourseTitle = "Digital Logic Design",
-                InstructorName = "Faculty Member",
-                IsActive = true
-            },
-            new CourseAssignment 
-            { 
-                DepartmentId = ceDept.Id, 
-                CourseCode = "CE301", 
-                CourseTitle = "Computer Architecture",
-                InstructorName = "Faculty Member",
-                IsActive = true
-            },
-            new CourseAssignment 
-            { 
-                DepartmentId = ceDept.Id, 
-                CourseCode = "CE401", 
-                CourseTitle = "Senior Design Project",
-                InstructorName = "Faculty Member",
-                IsActive = true
-            }
-        };
-        dbContext.CourseAssignments.AddRange(courses);
-        await dbContext.SaveChangesAsync();
-    }
 
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     var adminEmail = app.Configuration["SeedAdmin:Email"] ?? "admin@srvs.local";

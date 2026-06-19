@@ -389,26 +389,20 @@
                 pendingSyllabi = pendingSyllabiData.Deserialize<List<SyllabusPendingResponse>>() ?? new List<SyllabusPendingResponse>();
 
                 // Log debug info
-                var deptId = response.GetProperty("DepartmentId").GetGuid();
                 var totalInSystem = response.GetProperty("TotalSyllabiInSystem").GetInt32();
-                var totalInDept = response.GetProperty("TotalSyllabiInDept").GetInt32();
                 var pendingCount = response.GetProperty("PendingCount").GetInt32();
 
                 if (totalInSystem == 0)
                 {
                     errorMessage = $"Debug: No syllabi found in the entire system. Faculty may not have uploaded any syllabi yet.";
                 }
-                else if (totalInDept == 0)
-                {
-                    errorMessage = $"Debug: Found {totalInSystem} syllabus(es) in the system, but none in department {deptId}. Department Head's DepartmentId may not match the syllabus DepartmentId.";
-                }
                 else if (pendingCount == 0)
                 {
-                    errorMessage = $"Debug: Found {totalInDept} syllabus(es) in department {deptId}, but none have Status=Submitted. Faculty may need to submit their syllabi for review.";
+                    errorMessage = $"Debug: Found {totalInSystem} syllabus(es) in the system, but none have Status=Submitted. Faculty may need to submit their syllabi for review.";
                 }
                 else
                 {
-                    successMessage = $"Debug: Found {pendingCount} pending syllabus(es) out of {totalInDept} total in department {deptId}.";
+                    successMessage = $"Debug: Found {pendingCount} pending syllabus(es) out of {totalInSystem} total.";
                 }
             }
         }

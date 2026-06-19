@@ -30,8 +30,7 @@ public static class AdminEndpoints
                     u.FullName,
                     u.InstitutionalId,
                     u.Role,
-                    u.AccountStatus,
-                    u.DepartmentId
+                    u.AccountStatus
                 })
                 .ToListAsync();
 
@@ -89,8 +88,18 @@ public static class AdminEndpoints
             ApplicationDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var registrations = await dbContext.RegistrationRequests
-                .Where(r => r.Status == RegistrationStatus.Pending)
+            var registrations = await dbContext.Users
+                .Where(r => r.AccountStatus == UserAccountStatus.PendingApproval)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.Email,
+                    r.FullName,
+                    r.InstitutionalId,
+                    RequestedRole = r.Role,
+                    r.CreatedAtUtc,
+                    Status = r.AccountStatus
+                })
                 .ToListAsync(cancellationToken);
             return Results.Ok(registrations);
         })
@@ -105,16 +114,16 @@ public static class AdminEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
-            var registrations = await dbContext.RegistrationRequests
+            var registrations = await dbContext.Users
                 .Select(r => new
                 {
                     r.Id,
                     r.Email,
                     r.FullName,
                     r.InstitutionalId,
-                    r.RequestedRole,
+                    RequestedRole = r.Role,
                     r.CreatedAtUtc,
-                    r.Status
+                    Status = r.AccountStatus
                 })
                 .ToListAsync();
 
@@ -123,7 +132,7 @@ public static class AdminEndpoints
         .WithName("GetAllRegistrations");
 
         adminGroup.MapPut("/registrations/{id}/approve", async (
-            Guid id,
+            string id,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext dbContext,
@@ -133,20 +142,18 @@ public static class AdminEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
-            var registration = await dbContext.RegistrationRequests.FindAsync(id, cancellationToken);
+            var registration = await userManager.FindByIdAsync(id);
             if (registration is null) return Results.NotFound();
 
-            registration.Status = RegistrationStatus.Approved;
-            registration.ReviewedByUserId = user.Id;
-            registration.ReviewedAtUtc = DateTimeOffset.UtcNow;
-            await dbContext.SaveChangesAsync(cancellationToken);
+            registration.AccountStatus = UserAccountStatus.Active;
+            await userManager.UpdateAsync(registration);
 
             return Results.NoContent();
         })
         .WithName("ApproveRegistration");
 
         adminGroup.MapPut("/registrations/{id}/reject", async (
-            Guid id,
+            string id,
             RejectRegistrationRequest request,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
@@ -157,14 +164,11 @@ public static class AdminEndpoints
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
-            var registration = await dbContext.RegistrationRequests.FindAsync(id, cancellationToken);
+            var registration = await userManager.FindByIdAsync(id);
             if (registration is null) return Results.NotFound();
 
-            registration.Status = RegistrationStatus.Rejected;
-            registration.ReviewRemarks = request.ReviewRemarks;
-            registration.ReviewedByUserId = user.Id;
-            registration.ReviewedAtUtc = DateTimeOffset.UtcNow;
-            await dbContext.SaveChangesAsync(cancellationToken);
+            registration.AccountStatus = UserAccountStatus.Rejected;
+            await userManager.UpdateAsync(registration);
 
             return Results.NoContent();
         })

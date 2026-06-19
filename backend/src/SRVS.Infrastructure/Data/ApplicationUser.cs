@@ -11,8 +11,6 @@ public class ApplicationUser : IdentityUser
 
 	public UserRoleType Role { get; set; } = UserRoleType.Viewer;
 
-	public Guid? DepartmentId { get; set; }
-
 	public UserAccountStatus AccountStatus { get; set; } = UserAccountStatus.PendingApproval;
 
 	public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

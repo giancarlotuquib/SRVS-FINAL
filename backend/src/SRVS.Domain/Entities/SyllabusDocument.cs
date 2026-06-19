@@ -4,13 +4,7 @@ namespace SRVS.Domain.Entities;
 
 public class SyllabusDocument : EntityBase
 {
-    public Guid DepartmentId { get; set; }
 
-    public Department? Department { get; set; }
-
-    public Guid? CourseAssignmentId { get; set; }
-
-    public CourseAssignment? CourseAssignment { get; set; }
 
     public string CourseCode { get; set; } = string.Empty;
 

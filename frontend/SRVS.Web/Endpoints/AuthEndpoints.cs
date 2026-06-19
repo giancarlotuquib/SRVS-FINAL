@@ -112,18 +112,6 @@ public static class AuthEndpoints
 
             if (result.Succeeded)
             {
-                // Create RegistrationRequest for admin/department head approval
-                var registrationRequest = new RegistrationRequest
-                {
-                    FullName = user.FullName,
-                    Email = request.Email,
-                    InstitutionalId = normalizedSchoolId,
-                    RequestedRole = user.Role,
-                    Status = RegistrationStatus.Pending,
-                    CreatedAtUtc = DateTimeOffset.UtcNow
-                };
-                dbContext.RegistrationRequests.Add(registrationRequest);
-                await dbContext.SaveChangesAsync();
 
                 return Results.Ok(new { message = "Account created successfully. Your registration is pending approval." });
             }

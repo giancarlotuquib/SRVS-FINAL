@@ -14,117 +14,105 @@ public class RegistrationApprovalService(
 {
     public async Task<RegistrationReviewQuery> GetQueueAsync(UserRoleType? callerRole = null, string? search = null, CancellationToken cancellationToken = default)
     {
-        var query = dbContext.RegistrationRequests
+        var query = dbContext.Users
             .AsNoTracking()
-            .Include(request => request.Department)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(request =>
-                request.FullName.Contains(term) ||
-                request.Email.Contains(term) ||
-                request.InstitutionalId.Contains(term));
+            query = query.Where(u =>
+                u.FullName.Contains(term) ||
+                (u.Email != null && u.Email.Contains(term)) ||
+                u.InstitutionalId.Contains(term));
         }
 
         if (callerRole == UserRoleType.DepartmentHead)
         {
             // DepartmentHead can only approve Faculty (Educator) registrations
-            query = query.Where(r => r.RequestedRole == UserRoleType.Educator);
+            query = query.Where(u => u.Role == UserRoleType.Educator);
         }
         else if (callerRole == UserRoleType.Admin)
         {
             // Admin can approve DepartmentHead, Faculty (Educator) and Student (Viewer) registrations
-            query = query.Where(r => r.RequestedRole == UserRoleType.DepartmentHead
-                                     || r.RequestedRole == UserRoleType.Viewer
-                                     || r.RequestedRole == UserRoleType.Educator);
+            query = query.Where(u => u.Role == UserRoleType.DepartmentHead
+                                     || u.Role == UserRoleType.Viewer
+                                     || u.Role == UserRoleType.Educator);
         }
 
-        var pending = await query
-            .Where(request => request.Status == RegistrationStatus.Pending)
-            .OrderByDescending(request => request.CreatedAtUtc)
+        var pendingList = await query
+            .Where(u => u.AccountStatus == UserAccountStatus.PendingApproval)
+            .OrderByDescending(u => u.CreatedAtUtc)
+            .Select(u => new PendingUserDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email ?? string.Empty,
+                InstitutionalId = u.InstitutionalId,
+                Role = u.Role,
+                Status = u.AccountStatus,
+                CreatedAtUtc = u.CreatedAtUtc
+            })
             .ToListAsync(cancellationToken);
 
-        var pendingCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending, cancellationToken);
-        var approvedCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Approved, cancellationToken);
-        var rejectedCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Rejected, cancellationToken);
+        var pendingCount = await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.PendingApproval, cancellationToken);
+        var approvedCount = await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Active, cancellationToken);
+        var rejectedCount = await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Rejected, cancellationToken);
 
-        return new RegistrationReviewQuery(pending, pendingCount, approvedCount, rejectedCount);
+        return new RegistrationReviewQuery(pendingList, pendingCount, approvedCount, rejectedCount);
     }
 
     public async Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        return await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending, cancellationToken);
+        return await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.PendingApproval, cancellationToken);
     }
 
-    public async Task ApproveAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, UserRoleType reviewerRole, Guid? reviewerDepartmentId, CancellationToken cancellationToken = default)
+    public async Task ApproveAsync(string targetUserId, string reviewerUserId, string reviewerName, UserRoleType reviewerRole, CancellationToken cancellationToken = default)
     {
-        var request = await LoadRequestAsync(registrationRequestId, cancellationToken);
-        if (request.Status != RegistrationStatus.Pending)
+        var user = await userManager.FindByIdAsync(targetUserId)
+            ?? throw new InvalidOperationException("The user could not be found.");
+
+        if (user.AccountStatus != UserAccountStatus.PendingApproval)
         {
-            throw new InvalidOperationException("This request has already been reviewed.");
+            throw new InvalidOperationException("This user's account is not pending approval.");
         }
-
-        var user = await FindUserByEmailAsync(request.Email, cancellationToken)
-            ?? throw new InvalidOperationException("The linked user account could not be found.");
-
-        request.Status = RegistrationStatus.Approved;
-        request.ReviewRemarks = "Approved by system administrator.";
-        request.ReviewedByUserId = reviewerUserId;
-        request.ReviewedAtUtc = DateTimeOffset.UtcNow;
 
         user.AccountStatus = UserAccountStatus.Active;
-        user.LastLoginAtUtc ??= null;
-
-        if (reviewerRole == UserRoleType.DepartmentHead && (user.Role == UserRoleType.Educator || user.Role == UserRoleType.Viewer))
-        {
-            user.DepartmentId = reviewerDepartmentId;
-        }
-
-
-        await dbContext.SaveChangesAsync(cancellationToken);
+        
+        await userManager.UpdateAsync(user);
     }
 
-    public async Task RejectAsync(Guid registrationRequestId, string reviewerUserId, string reviewerName, string reviewRemarks, CancellationToken cancellationToken = default)
+    public async Task RejectAsync(string targetUserId, string reviewerUserId, string reviewerName, string reviewRemarks, CancellationToken cancellationToken = default)
     {
-        var request = await LoadRequestAsync(registrationRequestId, cancellationToken);
-        if (request.Status != RegistrationStatus.Pending)
+        var user = await userManager.FindByIdAsync(targetUserId)
+            ?? throw new InvalidOperationException("The user could not be found.");
+
+        if (user.AccountStatus != UserAccountStatus.PendingApproval)
         {
-            throw new InvalidOperationException("This request has already been reviewed.");
+            throw new InvalidOperationException("This user's account is not pending approval.");
         }
-
-        var user = await FindUserByEmailAsync(request.Email, cancellationToken)
-            ?? throw new InvalidOperationException("The linked user account could not be found.");
-
-        request.Status = RegistrationStatus.Rejected;
-        request.ReviewRemarks = reviewRemarks.Trim();
-        request.ReviewedByUserId = reviewerUserId;
-        request.ReviewedAtUtc = DateTimeOffset.UtcNow;
 
         user.AccountStatus = UserAccountStatus.Rejected;
 
-
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await userManager.UpdateAsync(user);
     }
 
-    private async Task<RegistrationRequest> LoadRequestAsync(Guid registrationRequestId, CancellationToken cancellationToken)
+    public async Task<PendingUserDto> GetRegistrationRequestAsync(string userId, CancellationToken cancellationToken = default)
     {
-        return await dbContext.RegistrationRequests
-            .FirstOrDefaultAsync(request => request.Id == registrationRequestId, cancellationToken)
-            ?? throw new InvalidOperationException("The selected registration request could not be found.");
-    }
-
-    public async Task<RegistrationRequest> GetRegistrationRequestAsync(Guid registrationRequestId, CancellationToken cancellationToken = default)
-    {
-        return await dbContext.RegistrationRequests
+        var user = await dbContext.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == registrationRequestId, cancellationToken)
-            ?? throw new InvalidOperationException("Registration request not found.");
-    }
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("User not found.");
 
-    private Task<ApplicationUser?> FindUserByEmailAsync(string email, CancellationToken cancellationToken)
-    {
-        return userManager.FindByEmailAsync(email);
+        return new PendingUserDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            InstitutionalId = user.InstitutionalId,
+            Role = user.Role,
+            Status = user.AccountStatus,
+            CreatedAtUtc = user.CreatedAtUtc
+        };
     }
 }

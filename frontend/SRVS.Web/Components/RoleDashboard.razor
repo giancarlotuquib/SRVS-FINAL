@@ -29,7 +29,7 @@
 
     <div class="row g-4">
         <div class="@(Role == UserRoleType.Viewer ? "col-12" : "col-lg-7")">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card p-2 h-100">
                 <div class="card-body">
                     <h2 class="h5">@PrimaryPanelTitle</h2>
                     @if (Role == UserRoleType.Educator)
@@ -126,7 +126,7 @@
         @if (Role != UserRoleType.Viewer)
         {
             <div class="col-lg-5">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card p-2 h-100">
                     <div class="card-body">
                         <h2 class="h5">Recent activity</h2>
                         <div class="list-group list-group-flush mt-3">
@@ -167,7 +167,6 @@
     [Parameter]
     public UserRoleType Role { get; set; }
 
-    private Guid? currentDepartmentId;
     private string? currentUserId;
     private CancellationTokenSource? refreshCancellationSource;
 
@@ -230,7 +229,6 @@
         }
 
         currentUserId = user.Id;
-        currentDepartmentId = user.DepartmentId;
     }
 
     private async Task ReloadAsync()
@@ -286,23 +284,22 @@
     private static async Task<IReadOnlyList<DashboardStat>> LoadAdminStatsAsync(ApplicationDbContext dbContext)
     {
         var userCount = await dbContext.Users.CountAsync();
-        var pendingCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending);
-        var approvedCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Approved);
+        var pendingCount = await dbContext.Users.CountAsync(user => user.AccountStatus == UserAccountStatus.PendingApproval);
+        var activeCount = await dbContext.Users.CountAsync(user => user.AccountStatus == UserAccountStatus.Active);
         return new[]
         {
-            new DashboardStat("Users", userCount.ToString()),
-            new DashboardStat("Pending Requests", pendingCount.ToString()),
-            new DashboardStat("Approved Requests", approvedCount.ToString())
+            new DashboardStat("Total Users", userCount.ToString()),
+            new DashboardStat("Pending Approvals", pendingCount.ToString()),
+            new DashboardStat("Active Users", activeCount.ToString())
         };
     }
 
     private async Task<IReadOnlyList<DashboardStat>> LoadDepartmentHeadStatsAsync(ApplicationDbContext dbContext)
     {
-        var departmentId = await ResolveDepartmentIdAsync(dbContext);
-        var pendingReviews = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Submitted);
-        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Approved);
-        var total = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentId == departmentId);
-        var reviewers = await dbContext.Users.CountAsync(user => user.DepartmentId == departmentId && user.Role == UserRoleType.DepartmentHead);
+        var pendingReviews = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Submitted);
+        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved);
+        var total = await dbContext.SyllabusDocuments.CountAsync();
+        var reviewers = await dbContext.Users.CountAsync(user => user.Role == UserRoleType.DepartmentHead);
 
         return new[]
         {
@@ -334,30 +331,25 @@
     {
         var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished);
         var recentUpdates = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished && document.UpdatedAtUtc >= DateTimeOffset.UtcNow.AddDays(-7));
-        var departments = await dbContext.Departments.CountAsync();
-        var versions = await dbContext.SyllabusVersions.CountAsync();
-
         return new[]
         {
             new DashboardStat("Approved Syllabi", approved.ToString()),
-            new DashboardStat("Recent Updates", recentUpdates.ToString()),
-            new DashboardStat("Departments", departments.ToString()),
-            new DashboardStat("Versions", versions.ToString())
+            new DashboardStat("Recent Updates", recentUpdates.ToString())
         };
     }
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadAdminPanelsAsync(ApplicationDbContext dbContext)
     {
-        var pendingRequests = await dbContext.RegistrationRequests
+        var pendingRequests = await dbContext.Users
             .AsNoTracking()
-            .Where(request => request.Status == RegistrationStatus.Pending)
+            .Where(request => request.AccountStatus == UserAccountStatus.PendingApproval)
             .OrderByDescending(request => request.CreatedAtUtc)
             .Take(5)
             .ToListAsync();
 
         var primary = pendingRequests.Select(request => new DashboardPrimaryItem(
             request.FullName,
-            $"{request.RequestedRole} • {request.InstitutionalId}",
+            $"{request.Role} • {request.InstitutionalId}",
             $"Submitted {request.CreatedAtUtc.ToLocalTime():g}",
             "Pending")).ToList();
 
@@ -371,20 +363,15 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadDepartmentHeadPanelsAsync(ApplicationDbContext dbContext)
     {
-        var departmentId = await ResolveDepartmentIdAsync(dbContext);
-
         var pendingReviews = await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Include(document => document.Department)
-            .Where(document => document.DepartmentId == departmentId && document.Status == SyllabusStatus.Submitted)
+            .Where(document => document.Status == SyllabusStatus.Submitted)
             .OrderByDescending(document => document.SubmittedAtUtc ?? document.UpdatedAtUtc)
             .Take(5)
             .ToListAsync();
 
         var recentDocs = await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Include(document => document.Department)
-            .Where(document => document.DepartmentId == departmentId)
             .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
             .Take(5)
             .ToListAsync();
@@ -459,22 +446,14 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadViewerPanelsAsync(ApplicationDbContext dbContext)
     {
-        // Get syllabi assigned to the current student
-        var assignedData = await dbContext.SyllabusAssignments
+        var approvedDocs = await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Where(a => a.StudentId == currentUserId && a.IsActive)
-            .Join(
-                dbContext.SyllabusDocuments.AsNoTracking(),
-                a => a.SyllabusId,
-                d => d.Id,
-                (a, d) => new { Assignment = a, Document = d })
-            .OrderByDescending(x => x.Assignment.AssignedAt)
+            .Where(d => d.Status == SyllabusStatus.Approved && d.IsPublished)
+            .OrderByDescending(d => d.UpdatedAtUtc ?? d.CreatedAtUtc)
             .Take(5)
             .ToListAsync();
 
-        var assignedDocs = assignedData.Select(x => x.Document).ToList();
-        
-        var primary = assignedDocs.Select(document => new DashboardPrimaryItem(
+        var primary = approvedDocs.Select(document => new DashboardPrimaryItem(
             document.CourseCode,
             document.CourseTitle,
             $"{document.Semester} • {document.InstructorName}",
@@ -482,43 +461,15 @@
             $"/syllabi/{document.Id}",
             "View Syllabus")).ToList();
 
-        var activity = assignedData.Select(item => new DashboardActivityItem(
-            item.Document.CourseCode,
-            $"Assigned syllabus: {item.Document.CourseTitle}",
-            item.Assignment.AssignedAt.ToLocalTime().ToString("g"),
-            $"/syllabi/{item.Document.Id}")).ToList();
+        var activity = approvedDocs.Select(item => new DashboardActivityItem(
+            item.CourseCode,
+            $"New update: {item.CourseTitle}",
+            (item.UpdatedAtUtc ?? item.CreatedAtUtc).ToLocalTime().ToString("g"),
+            $"/syllabi/{item.Id}")).ToList();
 
         return (primary, activity);
     }
 
-    private async Task<Guid> ResolveDepartmentIdAsync(ApplicationDbContext dbContext)
-    {
-        if (currentDepartmentId is not null)
-        {
-            return currentDepartmentId.Value;
-        }
-
-        var ceDepartment = await dbContext.Departments
-            .AsNoTracking()
-            .Where(department => department.IsActive && department.Code == "CE")
-            .Select(department => department.Id)
-            .FirstOrDefaultAsync();
-
-        if (ceDepartment != Guid.Empty)
-        {
-            return ceDepartment;
-        }
-
-        var firstDepartment = await dbContext.Departments
-            .AsNoTracking()
-            .Where(department => department.IsActive)
-            .Select(department => department.Id)
-            .FirstOrDefaultAsync();
-
-        return firstDepartment == Guid.Empty
-            ? throw new InvalidOperationException("No active department is available.")
-            : firstDepartment;
-    }
 
     private sealed record DashboardStat(string Label, string Value);
     private sealed record DashboardPrimaryItem(string Title, string Description, string Tag, string? Extra = null, string? Href = null, string ActionLabel = "View");

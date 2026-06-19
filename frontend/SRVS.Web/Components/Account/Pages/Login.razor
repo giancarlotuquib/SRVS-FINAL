@@ -8,13 +8,19 @@
 <div class="container py-4 py-lg-5">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6 col-xl-5">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-body p-4 p-md-5">
-                    <div class="text-center mb-4">
-                        <i class="bi bi-journal-bookmark-fill display-4 text-success"></i>
-                        <h1 class="h3 mt-3 mb-1 fw-bold" style="font-weight:500;">Syllabus Repository</h1>
-                        <p class="text-warning small text-uppercase fw-semibold" style="letter-spacing:0.1em;">ACADEMIC DOCUMENT MANAGEMENT</p>
+            <div class="text-center mb-5">
+                <div class="usjr-seal usjr-seal--hero mb-3">
+                    <div class="usjr-seal__ring">
+                        <img src="https://upload.wikimedia.org/wikipedia/en/thumb/f/fa/University_of_San_Jose%E2%80%93Recoletos_seal.svg/1200px-University_of_San_Jose%E2%80%93Recoletos_seal.svg.png" class="usjr-seal__img" alt="USJ-R Seal" />
                     </div>
+                </div>
+                <h1 class="display-6 mb-1">Syllabus Repository</h1>
+                <p class="text-uppercase small mb-0">Computer Engineering</p>
+            </div>
+
+            <div class="card p-2">
+                <div class="card-body p-4 p-md-5">
+                    <h3 class="mb-4 text-center fw-bold" style="color:#0a4025;">Welcome Back</h3>
 
                     @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
@@ -27,31 +33,28 @@
                     <form method="post" action="/Account/Login">
 
                         <div class="mb-3">
-                            <label class="form-label" for="SchoolId">School ID</label>
-                            <input type="text" name="SchoolId" id="SchoolId" class="form-control" placeholder="ID number" autocomplete="username" value="@(loginModel.SchoolId ?? string.Empty)" />
+                            <label class="form-label text-secondary fw-semibold" for="SchoolId">School ID or Email</label>
+                            <input type="text" name="SchoolId" id="SchoolId" class="form-control form-control-lg" placeholder="Enter your ID or Email" autocomplete="username" value="@(loginModel.SchoolId ?? string.Empty)" />
                         </div>
 
-
-
                         <div class="mb-4">
-                            <label class="form-label d-flex justify-content-between" for="Password">
+                            <label class="form-label d-flex justify-content-between text-secondary fw-semibold" for="Password">
                                 <span>Password</span>
-                                <a class="small text-decoration-none" href="/Account/ForgotPassword">Forgot password?</a>
+                                <a class="small text-decoration-none text-success" href="/Account/ForgotPassword">Forgot password?</a>
                             </label>
                             <div class="input-group password-input-group">
-                                <input type="password" name="Password" id="Password" class="form-control" autocomplete="current-password" placeholder="Password" value="@(loginModel.Password ?? string.Empty)" />
-                                <button type="button" class="btn btn-light password-toggle-btn" tabindex="-1">
+                                <input type="password" name="Password" id="Password" class="form-control form-control-lg" autocomplete="current-password" placeholder="••••••••" value="@(loginModel.Password ?? string.Empty)" />
+                                <button type="button" class="btn btn-light password-toggle-btn px-3" tabindex="-1">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 my-3">Log In</button>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 my-3 fw-bold">Sign In <i class="bi bi-arrow-right ms-2"></i></button>
                     </form>
 
-                    <hr class="my-4" />
-                    <div class="text-center">
-                        <small>Don't have an account? <a href="/Account/Register">Register here</a></small>
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <small class="text-muted">Don't have an account? <a href="/Account/Register" class="fw-bold text-success text-decoration-none">Register here</a></small>
                     </div>
                 </div>
             </div>

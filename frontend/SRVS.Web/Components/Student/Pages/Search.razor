@@ -204,7 +204,6 @@
         results = await SearchService.SearchAsync(
             new SyllabusSearchRequest(search.Term, filterStatus, 100),
             currentUser!.Role,
-            currentUser.DepartmentId,
             currentUser.Id);
 
         message = results.TotalCount == 0

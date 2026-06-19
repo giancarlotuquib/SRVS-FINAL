@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRVS.Web.Data;
@@ -11,9 +12,11 @@ using SRVS.Web.Data;
 namespace SRVS.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619063350_RemoveAssignmentsAndRedundantTables")]
+    partial class RemoveAssignmentsAndRedundantTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,7 +48,7 @@ namespace SRVS.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("roles", "identity");
+                    b.ToTable("AspNetRoles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -70,7 +73,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("role_claims", "identity");
+                    b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -95,7 +98,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("user_claims", "identity");
+                    b.ToTable("AspNetUserClaims", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
@@ -119,7 +122,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("user_logins", "identity");
+                    b.ToTable("AspNetUserLogins", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserPasskey<string>", b =>
@@ -151,7 +154,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("user_roles", "identity");
+                    b.ToTable("AspNetUserRoles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
@@ -172,7 +175,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("user_tokens", "identity");
+                    b.ToTable("AspNetUserTokens", (string)null);
                 });
 
             modelBuilder.Entity("SRVS.Domain.Entities.SyllabusDocument", b =>
@@ -247,7 +250,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("syllabi", (string)null);
+                    b.ToTable("SyllabusDocuments");
                 });
 
             modelBuilder.Entity("SRVS.Domain.Entities.SyllabusVersion", b =>
@@ -298,7 +301,7 @@ namespace SRVS.Infrastructure.Migrations
 
                     b.HasIndex("SyllabusDocumentId");
 
-                    b.ToTable("syllabus_versions", (string)null);
+                    b.ToTable("SyllabusVersions");
                 });
 
             modelBuilder.Entity("SRVS.Web.Data.ApplicationUser", b =>
@@ -383,7 +386,7 @@ namespace SRVS.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("AspNetUsers", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

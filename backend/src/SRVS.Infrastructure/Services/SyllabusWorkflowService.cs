@@ -14,9 +14,6 @@ public class SyllabusWorkflowService(
 {
     public async Task<SyllabusDocument> SaveDraftAsync(SyllabusDraftUpsertRequest request, CancellationToken cancellationToken = default)
     {
-        var department = await dbContext.Departments
-            .FirstOrDefaultAsync(item => item.Id == request.DepartmentId && item.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("Selected department is not available.");
 
         SyllabusDocument document;
         var isNewDocument = request.SyllabusDocumentId is null;
@@ -24,7 +21,7 @@ public class SyllabusWorkflowService(
         {
             document = new SyllabusDocument
             {
-                DepartmentId = department.Id,
+
                 CourseCode = request.CourseCode.Trim(),
                 CourseTitle = request.CourseTitle.Trim(),
                 AcademicYear = request.AcademicYear.Trim(),
@@ -59,7 +56,7 @@ public class SyllabusWorkflowService(
         await using var storageStream = request.FileStream;
         var storagePath = await fileStorage.SaveAsync(storageStream, fileName, cancellationToken);
 
-        document.DepartmentId = department.Id;
+
         document.CourseCode = request.CourseCode.Trim();
         document.CourseTitle = request.CourseTitle.Trim();
         document.AcademicYear = request.AcademicYear.Trim();
@@ -186,10 +183,5 @@ public class SyllabusWorkflowService(
             ?? throw new InvalidOperationException("The requested syllabus could not be found.");
     }
 
-    private async Task<List<ApplicationUser>> FindDepartmentHeadsAsync(Guid departmentId, CancellationToken cancellationToken)
-    {
-        return await dbContext.Users
-            .Where(user => user.DepartmentId == departmentId && user.Role == UserRoleType.DepartmentHead && user.AccountStatus == UserAccountStatus.Active)
-            .ToListAsync(cancellationToken);
-    }
+
 }

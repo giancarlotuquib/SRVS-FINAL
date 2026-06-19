@@ -1,51 +1,29 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SRVS.Domain.Entities;
-
 namespace SRVS.Web.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
-	public DbSet<Department> Departments => Set<Department>();
-
-	public DbSet<CourseAssignment> CourseAssignments => Set<CourseAssignment>();
-
-
-	public DbSet<RegistrationRequest> RegistrationRequests => Set<RegistrationRequest>();
-
 	public DbSet<SyllabusDocument> SyllabusDocuments => Set<SyllabusDocument>();
 
 	public DbSet<SyllabusVersion> SyllabusVersions => Set<SyllabusVersion>();
-
-	public DbSet<SyllabusAssignment> SyllabusAssignments => Set<SyllabusAssignment>();
-
-
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
 		base.OnModelCreating(modelBuilder);
 
-		// Add index to speed up DeptHead lookups for syllabi by DepartmentId + Status
-		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => new { s.DepartmentId, s.Status });
+		modelBuilder.Entity<ApplicationUser>().ToTable("users");
+		modelBuilder.Entity<IdentityRole>().ToTable("roles", "identity");
+		modelBuilder.Entity<IdentityUserRole<string>>().ToTable("user_roles", "identity");
+		modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("user_claims", "identity");
+		modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("user_logins", "identity");
+		modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("role_claims", "identity");
+		modelBuilder.Entity<IdentityUserToken<string>>().ToTable("user_tokens", "identity");
 
-		modelBuilder.Entity<SyllabusAssignment>(entity =>
-		{
-			entity.Property(item => item.StudentId).HasMaxLength(450);
-			entity.Property(item => item.AssignedBy).HasMaxLength(450);
-			entity.HasIndex(item => new { item.StudentId, item.IsActive });
-			entity.HasIndex(item => item.SyllabusId);
-			entity.HasIndex(item => item.AssignedBy);
-			entity.HasOne<ApplicationUser>()
-				.WithMany()
-				.HasForeignKey(item => item.StudentId)
-				.OnDelete(DeleteBehavior.Cascade);
-			entity.HasOne<ApplicationUser>()
-				.WithMany()
-				.HasForeignKey(item => item.AssignedBy)
-				.OnDelete(DeleteBehavior.NoAction);
-			entity.HasOne<SyllabusDocument>()
-				.WithMany()
-				.HasForeignKey(item => item.SyllabusId)
-				.OnDelete(DeleteBehavior.Cascade);
-		});
+		modelBuilder.Entity<SyllabusDocument>().ToTable("syllabi");
+		modelBuilder.Entity<SyllabusVersion>().ToTable("syllabus_versions");
+
+		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => s.Status);
 	}
 }
