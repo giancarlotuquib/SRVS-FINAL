@@ -497,7 +497,7 @@ public static class DeptHeadEndpoints
         });
     }
 
-    private static async Task<IReadOnlyCollection<Guid>> GetDepartmentHeadDepartmentIdsAsync(ApplicationDbContext dbContext, ApplicationUser user)
+    private static Task<IReadOnlyCollection<Guid>> GetDepartmentHeadDepartmentIdsAsync(ApplicationDbContext dbContext, ApplicationUser user)
     {
         var departmentIds = new HashSet<Guid>();
         if (user.DepartmentId.HasValue)
@@ -505,16 +505,6 @@ public static class DeptHeadEndpoints
             departmentIds.Add(user.DepartmentId.Value);
         }
 
-        var assignedDepartmentIds = await dbContext.UserDepartments
-            .Where(item => item.UserId == user.Id)
-            .Select(item => item.DepartmentId)
-            .ToListAsync();
-
-        foreach (var departmentId in assignedDepartmentIds)
-        {
-            departmentIds.Add(departmentId);
-        }
-
-        return departmentIds;
+        return Task.FromResult<IReadOnlyCollection<Guid>>(departmentIds);
     }
 }

@@ -92,18 +92,7 @@ public class SyllabusWorkflowService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = request.UploadedByUserId,
-            UserDisplayName = request.UploadedByName,
-            ActionType = AuditActionType.SyllabusUploaded,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Uploaded version V{nextVersionNumber} for course {document.CourseCode}.",
-            EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id.ToString()
-        });
 
-        await dbContext.SaveChangesAsync(cancellationToken);
         return document;
     }
 
@@ -114,29 +103,7 @@ public class SyllabusWorkflowService(
         document.SubmittedAtUtc = DateTimeOffset.UtcNow;
         document.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = actorUserId,
-            UserDisplayName = actorName,
-            ActionType = AuditActionType.SyllabusSubmitted,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Submitted syllabus {document.CourseCode} for review.",
-            EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id.ToString()
-        });
 
-        foreach (var recipient in await FindDepartmentHeadsAsync(document.DepartmentId, cancellationToken))
-        {
-            dbContext.NotificationEntries.Add(new NotificationEntry
-            {
-                RecipientUserId = recipient.Id,
-                Type = NotificationType.SubmissionAlert,
-                Title = "Syllabus submitted for review",
-                Message = $"{document.CourseCode} is ready for review in {document.Semester}.",
-                RelatedEntityType = nameof(SyllabusDocument),
-                RelatedEntityId = document.Id.ToString()
-            });
-        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -151,26 +118,7 @@ public class SyllabusWorkflowService(
         document.ReviewedAtUtc = DateTimeOffset.UtcNow;
         document.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = actorUserId,
-            UserDisplayName = actorName,
-            ActionType = AuditActionType.SyllabusApproved,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Approved syllabus {document.CourseCode}.",
-            EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id.ToString()
-        });
 
-        dbContext.NotificationEntries.Add(new NotificationEntry
-        {
-            RecipientUserId = document.OwnerUserId,
-            Type = NotificationType.ApprovalAlert,
-            Title = "Syllabus approved",
-            Message = $"Your syllabus for {document.CourseCode} has been approved and published.",
-            RelatedEntityType = nameof(SyllabusDocument),
-            RelatedEntityId = document.Id.ToString()
-        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -185,26 +133,7 @@ public class SyllabusWorkflowService(
         document.ReviewedAtUtc = DateTimeOffset.UtcNow;
         document.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = actorUserId,
-            UserDisplayName = actorName,
-            ActionType = AuditActionType.SyllabusRejected,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Rejected syllabus {document.CourseCode}.",
-            EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id.ToString()
-        });
 
-        dbContext.NotificationEntries.Add(new NotificationEntry
-        {
-            RecipientUserId = document.OwnerUserId,
-            Type = NotificationType.RejectionAlert,
-            Title = "Syllabus rejected",
-            Message = $"Your syllabus for {document.CourseCode} was rejected: {feedback.Trim()}",
-            RelatedEntityType = nameof(SyllabusDocument),
-            RelatedEntityId = document.Id.ToString()
-        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -243,16 +172,7 @@ public class SyllabusWorkflowService(
             UploadedAtUtc = DateTimeOffset.UtcNow
         });
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = actorUserId,
-            UserDisplayName = actorName,
-            ActionType = AuditActionType.SyllabusRestored,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Restored syllabus {document.CourseCode} from version {version.VersionNumber}.",
-            EntityType = nameof(SyllabusDocument),
-            EntityId = document.Id.ToString()
-        });
+
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return document;

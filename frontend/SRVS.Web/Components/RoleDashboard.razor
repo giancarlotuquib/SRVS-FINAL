@@ -28,7 +28,7 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-7">
+        <div class="@(Role == UserRoleType.Viewer ? "col-12" : "col-lg-7")">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h2 class="h5">@PrimaryPanelTitle</h2>
@@ -123,38 +123,41 @@
             </div>
         </div>
 
-        <div class="col-lg-5">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <h2 class="h5">Recent activity</h2>
-                    <div class="list-group list-group-flush mt-3">
-                        @if (RecentItems.Count == 0)
-                        {
-                            <div class="list-group-item px-0 text-secondary">No recent activity yet.</div>
-                        }
-                        else
-                        {
-                            @foreach (var item in RecentItems)
+        @if (Role != UserRoleType.Viewer)
+        {
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h2 class="h5">Recent activity</h2>
+                        <div class="list-group list-group-flush mt-3">
+                            @if (RecentItems.Count == 0)
                             {
-                                <div class="list-group-item px-0">
-                                    <div class="fw-semibold">
-                                        @if (!string.IsNullOrWhiteSpace(item.Href))
-                                        {
-                                            <a href="@item.Href" class="text-decoration-none">@item.Title</a>
-                                        }
-                                        else
-                                        {
-                                            @item.Title
-                                        }
-                                    </div>
-                                    <div class="text-secondary small">@item.Description</div>
-                                </div>
+                                <div class="list-group-item px-0 text-secondary">No recent activity yet.</div>
                             }
-                        }
+                            else
+                            {
+                                @foreach (var item in RecentItems)
+                                {
+                                    <div class="list-group-item px-0">
+                                        <div class="fw-semibold">
+                                            @if (!string.IsNullOrWhiteSpace(item.Href))
+                                            {
+                                                <a href="@item.Href" class="text-decoration-none">@item.Title</a>
+                                            }
+                                            else
+                                            {
+                                                @item.Title
+                                            }
+                                        </div>
+                                        <div class="text-secondary small">@item.Description</div>
+                                    </div>
+                                }
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        }
     </div>
 
 
@@ -285,14 +288,11 @@
         var userCount = await dbContext.Users.CountAsync();
         var pendingCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Pending);
         var approvedCount = await dbContext.RegistrationRequests.CountAsync(request => request.Status == RegistrationStatus.Approved);
-        var auditCount = await dbContext.AuditLogEntries.CountAsync();
-
         return new[]
         {
             new DashboardStat("Users", userCount.ToString()),
             new DashboardStat("Pending Requests", pendingCount.ToString()),
-            new DashboardStat("Approved Requests", approvedCount.ToString()),
-            new DashboardStat("Audit Entries", auditCount.ToString())
+            new DashboardStat("Approved Requests", approvedCount.ToString())
         };
     }
 
@@ -355,24 +355,18 @@
             .Take(5)
             .ToListAsync();
 
-        var recentLogs = await dbContext.AuditLogEntries
-            .AsNoTracking()
-            .OrderByDescending(log => log.CreatedAtUtc)
-            .Take(5)
-            .ToListAsync();
-
         var primary = pendingRequests.Select(request => new DashboardPrimaryItem(
             request.FullName,
             $"{request.RequestedRole} • {request.InstitutionalId}",
             $"Submitted {request.CreatedAtUtc.ToLocalTime():g}",
             "Pending")).ToList();
 
-        var activity = recentLogs.Select(log => new DashboardActivityItem(
-            log.ActionType.ToString(),
-            log.Description,
-            log.CreatedAtUtc.ToLocalTime().ToString("g"))).ToList();
+        var recentActivity = pendingRequests.Select(request => new DashboardActivityItem(
+            "Registration",
+            $"Pending registration for {request.FullName}",
+            request.CreatedAtUtc.ToLocalTime().ToString("g"))).ToList();
 
-        return (primary, activity);
+        return (primary, recentActivity);
     }
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadDepartmentHeadPanelsAsync(ApplicationDbContext dbContext)
@@ -416,12 +410,11 @@
     {
         var authoredDocs = await LoadEducatorDocumentsAsync(dbContext);
 
-        var activityLogs = await dbContext.AuditLogEntries
-            .AsNoTracking()
-            .Where(log => log.UserId == currentUserId)
-            .OrderByDescending(log => log.CreatedAtUtc)
-            .Take(5)
-            .ToListAsync();
+        var activityLogs = authoredDocs.Take(5).Select(document => new DashboardActivityItem(
+            document.CourseCode,
+            $"Updated {document.CourseTitle}",
+            (document.UpdatedAtUtc ?? document.CreatedAtUtc).ToLocalTime().ToString("g"),
+            $"/syllabi/{document.Id}")).ToList();
 
         var primary = authoredDocs.Select(document => new DashboardPrimaryItem(
             document.CourseCode,
@@ -439,15 +432,7 @@
                         ? "View Uploaded"
                         : "View")).ToList();
 
-        var activity = activityLogs.Select(log => new DashboardActivityItem(
-            log.ActionType.ToString(),
-            log.Description,
-            log.CreatedAtUtc.ToLocalTime().ToString("g"),
-            log.EntityType == nameof(SyllabusDocument) && Guid.TryParse(log.EntityId, out var documentId)
-                ? $"/syllabi/{documentId}"
-                : null)).ToList();
-
-        return (primary, activity);
+        return (primary, activityLogs);
     }
 
     private async Task<IReadOnlyList<SyllabusDocument>> LoadEducatorDocumentsAsync(ApplicationDbContext dbContext)
@@ -457,21 +442,16 @@
             return [];
         }
 
-        var uploadedDocumentIds = await dbContext.AuditLogEntries
+        var uploadedDocumentIds = await dbContext.SyllabusVersions
             .AsNoTracking()
-            .Where(log => log.UserId == currentUserId && log.ActionType == AuditActionType.SyllabusUploaded && log.EntityType == nameof(SyllabusDocument))
-            .Select(log => log.EntityId)
+            .Where(version => version.UploadedByUserId == currentUserId)
+            .Select(version => version.SyllabusDocumentId)
             .Distinct()
             .ToListAsync();
 
-        var parsedUploadedDocumentIds = uploadedDocumentIds
-            .Select(entityId => Guid.TryParse(entityId, out var documentId) ? documentId : Guid.Empty)
-            .Where(documentId => documentId != Guid.Empty)
-            .ToList();
-
         return await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Where(document => document.OwnerUserId == currentUserId || parsedUploadedDocumentIds.Contains(document.Id))
+            .Where(document => document.OwnerUserId == currentUserId || uploadedDocumentIds.Contains(document.Id))
             .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
             .ToListAsync();
     }

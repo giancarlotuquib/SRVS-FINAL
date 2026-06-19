@@ -45,7 +45,7 @@ builder.Services.AddAuthentication(options =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(connectionString);
+    options.UseNpgsql(connectionString);
     if (builder.Environment.IsDevelopment())
     {
         options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
@@ -229,49 +229,6 @@ static async Task SeedSrvsDataAsync(WebApplication app)
         }
     }
 
-    var deptHeadEmail = "depthead@srvs.local";
-    if (await userManager.FindByEmailAsync(deptHeadEmail) is null)
-    {
-        var dept = await dbContext.Departments.FirstOrDefaultAsync(d => d.Code == "CE") 
-                   ?? await dbContext.Departments.FirstOrDefaultAsync();
-        if (dept is not null)
-        {
-            var user = new ApplicationUser
-            {
-                UserName = deptHeadEmail,
-                Email = deptHeadEmail,
-                FullName = "Department Head User",
-                InstitutionalId = "11111",
-                Role = UserRoleType.DepartmentHead,
-                DepartmentId = dept.Id,
-                AccountStatus = UserAccountStatus.Active,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, adminPassword);
-        }
-    }
-
-    var educatorEmail = "educator@srvs.local";
-    if (await userManager.FindByEmailAsync(educatorEmail) is null)
-    {
-        var dept = await dbContext.Departments.FirstOrDefaultAsync(d => d.Code == "CE") 
-                   ?? await dbContext.Departments.FirstOrDefaultAsync();
-        if (dept is not null)
-        {
-            var user = new ApplicationUser
-            {
-                UserName = educatorEmail,
-                Email = educatorEmail,
-                FullName = "Educator User",
-                InstitutionalId = "22222",
-                Role = UserRoleType.Educator,
-                DepartmentId = dept.Id,
-                AccountStatus = UserAccountStatus.Active,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, adminPassword);
-        }
-    }
 }
 
 

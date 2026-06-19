@@ -385,14 +385,7 @@
             return false;
         }
 
-        if (currentUser.DepartmentId == documentDepartmentId)
-        {
-            return true;
-        }
-
-        return await dbContext.UserDepartments.AnyAsync(item =>
-            item.UserId == currentUser.Id &&
-            item.DepartmentId == documentDepartmentId);
+        return currentUser.DepartmentId == documentDepartmentId;
     }
 
     private bool CanCurrentUserViewDocument(bool departmentHeadHasAccess)

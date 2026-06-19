@@ -10,7 +10,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
 	public DbSet<CourseAssignment> CourseAssignments => Set<CourseAssignment>();
 
-	public DbSet<UserDepartment> UserDepartments => Set<UserDepartment>();
 
 	public DbSet<RegistrationRequest> RegistrationRequests => Set<RegistrationRequest>();
 
@@ -20,9 +19,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
 	public DbSet<SyllabusAssignment> SyllabusAssignments => Set<SyllabusAssignment>();
 
-	public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
-
-	public DbSet<NotificationEntry> NotificationEntries => Set<NotificationEntry>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{

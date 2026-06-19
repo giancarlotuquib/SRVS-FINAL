@@ -10,7 +10,5 @@ public class Department : EntityBase
 
     public ICollection<CourseAssignment> CourseAssignments { get; set; } = new List<CourseAssignment>();
 
-    public ICollection<UserDepartment> UserDepartments { get; set; } = new List<UserDepartment>();
-
     public ICollection<SyllabusDocument> SyllabusDocuments { get; set; } = new List<SyllabusDocument>();
 }

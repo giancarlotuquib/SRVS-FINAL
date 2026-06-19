@@ -101,15 +101,12 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
 
         if (role == UserRoleType.DepartmentHead)
         {
-            var assignedDepartments = await dbContext.UserDepartments
-                .Where(item => item.UserId == userId)
-                .Select(item => item.DepartmentId)
-                .ToListAsync(cancellationToken);
-
-            foreach (var assignedDepartmentId in assignedDepartments)
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+            if (user?.DepartmentId != null)
             {
-                departmentIds.Add(assignedDepartmentId);
+                departmentIds.Add(user.DepartmentId.Value);
             }
+
         }
 
         return departmentIds;

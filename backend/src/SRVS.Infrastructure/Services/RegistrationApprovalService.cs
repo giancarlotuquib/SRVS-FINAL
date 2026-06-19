@@ -82,26 +82,6 @@ public class RegistrationApprovalService(
             user.DepartmentId = reviewerDepartmentId;
         }
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = reviewerUserId,
-            UserDisplayName = reviewerName,
-            ActionType = AuditActionType.RegistrationApproved,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Approved registration for {request.Email}.",
-            EntityType = nameof(RegistrationRequest),
-            EntityId = request.Id.ToString()
-        });
-
-        dbContext.NotificationEntries.Add(new NotificationEntry
-        {
-            RecipientUserId = user.Id,
-            Type = NotificationType.RegistrationApproved,
-            Title = "Registration approved",
-            Message = "Your SRVS account is now active.",
-            RelatedEntityType = nameof(RegistrationRequest),
-            RelatedEntityId = request.Id.ToString()
-        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -124,28 +104,6 @@ public class RegistrationApprovalService(
 
         user.AccountStatus = UserAccountStatus.Rejected;
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntry
-        {
-            UserId = reviewerUserId,
-            UserDisplayName = reviewerName,
-            ActionType = AuditActionType.RegistrationRejected,
-            ResultStatus = AuditResultStatus.Success,
-            Description = $"Rejected registration for {request.Email}.",
-            EntityType = nameof(RegistrationRequest),
-            EntityId = request.Id.ToString()
-        });
-
-        dbContext.NotificationEntries.Add(new NotificationEntry
-        {
-            RecipientUserId = user.Id,
-            Type = NotificationType.RegistrationRejected,
-            Title = "Registration rejected",
-            Message = string.IsNullOrWhiteSpace(reviewRemarks)
-                ? "Your SRVS account request was rejected."
-                : $"Your SRVS account request was rejected: {reviewRemarks.Trim()}",
-            RelatedEntityType = nameof(RegistrationRequest),
-            RelatedEntityId = request.Id.ToString()
-        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
