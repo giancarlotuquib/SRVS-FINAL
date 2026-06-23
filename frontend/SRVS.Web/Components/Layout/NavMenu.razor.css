@@ -21,6 +21,13 @@
     color: #fff3c4;
 }
 
+.navbar-logo {
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 3rem;
+    object-fit: contain;
+}
+
 .navbar-title,
 .navbar-subtitle {
     display: block;

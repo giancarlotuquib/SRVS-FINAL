@@ -144,6 +144,35 @@ h1:focus {
     -webkit-text-fill-color: transparent;
 }
 
+.auth-page {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.auth-page--login {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.auth-brand {
+    margin-bottom: 1.25rem;
+}
+
+.auth-card .card-body {
+    padding: 1.5rem;
+}
+
+.auth-card__title {
+    margin-bottom: 1.25rem;
+}
+
+.auth-card__footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+}
+
 .table {
     --bs-table-hover-bg: rgba(20, 92, 61, 0.05);
 }
@@ -231,8 +260,6 @@ h1:focus {
     height: 100%;
     object-fit: contain;
     display: block;
-    border-radius: 50%;
-    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.25);
 }
 
 
@@ -271,8 +298,23 @@ h1:focus {
 }
 
 .usjr-seal--hero .usjr-seal__ring {
-    width: 9rem;
-    height: 9rem;
+    width: 7rem;
+    height: 7rem;
+}
+
+.auth-page--login .usjr-seal--hero .usjr-seal__ring {
+    width: 5.75rem;
+    height: 5.75rem;
+}
+
+.auth-page--login .display-6 {
+    font-size: 1.75rem;
+}
+
+.auth-page--login .form-control-lg,
+.auth-page--login .btn-lg {
+    min-height: 3rem;
+    font-size: 1rem;
 }
 
 .usjr-seal--hero .usjr-seal__caption {
@@ -293,6 +335,67 @@ h1:focus {
     margin-left: 0.6rem;
     white-space: nowrap;
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.dashboard-heading {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.dashboard-heading__logo {
+    width: 4.25rem;
+    height: 4.25rem;
+    flex: 0 0 4.25rem;
+    object-fit: contain;
+}
+
+@media (max-width: 576px) {
+    .dashboard-heading {
+        align-items: flex-start;
+    }
+
+    .dashboard-heading__logo {
+        width: 3.25rem;
+        height: 3.25rem;
+        flex-basis: 3.25rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .auth-card .card-body {
+        padding: 2rem;
+    }
+}
+
+@media (max-height: 760px) {
+    .auth-page--login {
+        justify-content: flex-start;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .auth-page--login .auth-brand {
+        margin-bottom: 0.8rem;
+    }
+
+    .auth-page--login .usjr-seal--hero .usjr-seal__ring {
+        width: 4.75rem;
+        height: 4.75rem;
+    }
+
+    .auth-page--login .display-6 {
+        font-size: 1.45rem;
+    }
+
+    .auth-page--login .auth-card .card-body {
+        padding: 1.1rem;
+    }
+
+    .auth-page--login .mb-4 {
+        margin-bottom: 1rem !important;
+    }
 }
 
 @media (max-width: 576px) {
