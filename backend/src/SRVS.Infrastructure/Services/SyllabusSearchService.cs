@@ -36,7 +36,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
                 document.InstructorName,
                 document.CurrentVersionNumber,
                 document.Status,
-                CanAccessDocument(document, role, userId, requirePublishedForViewer: true),
+                CanAccessDocument(document, role, userId, isAssignedViewerDocument: role == UserRoleType.Viewer),
                 GetVisibilityLabel(document, role),
                 document.LatestChangeSummary))
             .ToList();
@@ -56,7 +56,15 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
             return null;
         }
 
-        return CanAccessDocument(document, role, userId, requirePublishedForViewer: true) ? document : null;
+        var isAssignedViewerDocument = role == UserRoleType.Viewer
+            && await dbContext.SyllabusAssignments.AnyAsync(
+                assignment => assignment.StudentId == userId
+                    && assignment.SyllabusId == document.Id
+                    && assignment.IsActive
+                    && assignment.DeletedAt == null,
+                cancellationToken);
+
+        return CanAccessDocument(document, role, userId, isAssignedViewerDocument) ? document : null;
     }
 
     private static IQueryable<SyllabusDocument> BuildScopedQuery(ApplicationDbContext dbContext, UserRoleType role, string userId, SyllabusStatus? statusFilter)
@@ -68,19 +76,26 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
             UserRoleType.Admin => query,
             UserRoleType.DepartmentHead => query,
             UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId),
-            UserRoleType.Viewer => query.Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished),
+            UserRoleType.Viewer => query.Where(document =>
+                document.Status == SyllabusStatus.Approved
+                && document.IsPublished
+                && dbContext.SyllabusAssignments.Any(assignment =>
+                    assignment.StudentId == userId
+                    && assignment.SyllabusId == document.Id
+                    && assignment.IsActive
+                    && assignment.DeletedAt == null)),
             _ => query.Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
         };
     }
 
-    private static bool CanAccessDocument(SyllabusDocument document, UserRoleType role, string userId, bool requirePublishedForViewer)
+    private static bool CanAccessDocument(SyllabusDocument document, UserRoleType role, string userId, bool isAssignedViewerDocument)
     {
         return role switch
         {
             UserRoleType.Admin => true,
             UserRoleType.DepartmentHead => true,
             UserRoleType.Educator => document.OwnerUserId == userId,
-            UserRoleType.Viewer => (!requirePublishedForViewer || document.IsPublished) && document.Status == SyllabusStatus.Approved,
+            UserRoleType.Viewer => document.IsPublished && document.Status == SyllabusStatus.Approved && isAssignedViewerDocument,
             _ => false
         };
     }
@@ -115,7 +130,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
             UserRoleType.Admin => "Full access",
             UserRoleType.DepartmentHead => document.Status == SyllabusStatus.Submitted ? "Pending review" : "Department head access",
             UserRoleType.Educator => document.OwnerUserId == string.Empty ? "Department scope" : "Owner/department scope",
-            UserRoleType.Viewer => "Published",
+            UserRoleType.Viewer => "Assigned",
             _ => "Read-only"
         };
     }

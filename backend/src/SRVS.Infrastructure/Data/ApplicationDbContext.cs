@@ -9,6 +9,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 	public DbSet<SyllabusDocument> SyllabusDocuments => Set<SyllabusDocument>();
 
 	public DbSet<SyllabusVersion> SyllabusVersions => Set<SyllabusVersion>();
+
+	public DbSet<SyllabusAssignment> SyllabusAssignments => Set<SyllabusAssignment>();
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
 		base.OnModelCreating(modelBuilder);
@@ -23,7 +25,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
 		modelBuilder.Entity<SyllabusDocument>().ToTable("syllabi");
 		modelBuilder.Entity<SyllabusVersion>().ToTable("syllabus_versions");
+		modelBuilder.Entity<SyllabusAssignment>().ToTable("syllabus_assignments");
 
 		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => s.Status);
+		modelBuilder.Entity<SyllabusAssignment>().HasIndex(a => new { a.StudentId, a.IsActive });
+		modelBuilder.Entity<SyllabusAssignment>().HasIndex(a => a.SyllabusId);
 	}
 }

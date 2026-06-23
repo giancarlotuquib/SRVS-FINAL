@@ -2,12 +2,15 @@
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@using System.Reflection
 @using SRVS.Application.Services
 @using SRVS.Web.Data
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IServiceProvider ServiceProvider
 @inject NavigationManager NavigationManager
+
+<input id="logout-confirm-toggle" class="logout-confirm-toggle" type="checkbox" />
 
 <div class="nav-shell">
     <a class="navbar-brand" href="/dashboard">
@@ -56,14 +59,10 @@
                     </NavLink>
                 </div>
                 <div class="nav-item">
-                    <form action="Account/Logout" method="post" onsubmit="return confirm('Log out of SRVS?');">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link nav-link--button">
-                            <span class="nav-link__icon nav-link__icon--logout" aria-hidden="true"></span>
-                            <span>Logout</span>
-                        </button>
-                    </form>
+                    <label class="nav-link nav-link--button" for="logout-confirm-toggle" role="button" tabindex="0">
+                        <span class="nav-link__icon nav-link__icon--logout" aria-hidden="true"></span>
+                        <span>Logout</span>
+                    </label>
                 </div>
             </div>
         </Authorized>
@@ -85,11 +84,39 @@
             </div>
         </NotAuthorized>
     </AuthorizeView>
+
+    <div class="nav-version">Version @AppVersion</div>
 </div>
+
+<div class="logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="logout-confirm-title" class="modal-title h5">Log out of SRVS?</h2>
+                <label class="btn-close" for="logout-confirm-toggle" aria-label="Close"></label>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Your current session will end and you will return to the login page.</p>
+            </div>
+            <div class="modal-footer">
+                <label class="btn btn-secondary" for="logout-confirm-toggle" role="button">Cancel</label>
+                <form action="/Account/Logout" method="post" class="m-0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="Account/Login" />
+                    <button type="submit" class="btn btn-danger">Logout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<label class="logout-confirm-backdrop" for="logout-confirm-toggle" aria-label="Cancel logout"></label>
 
 @code {
     private string? currentUrl;
     private ApplicationUser? currentUser;
+    private static string AppVersion => Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+        .InformationalVersion ?? "1.0.0";
 
     private string DisplayName => currentUser?.FullName ?? currentUser?.Email ?? "SRVS User";
 
@@ -127,6 +154,7 @@
         UserRoleType.DepartmentHead =>
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.DepartmentHead), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Assign Students", "/department-head/students", "nav-link__icon--users"),
             new("Upload Syllabus", "/department-head/upload", "nav-link__icon--upload"),
             new("Review Submissions", "/department-head/review-submissions", "nav-link__icon--review"),
             new("Syllabus Repository", "/department-head/syllabus-repository", "nav-link__icon--repository")

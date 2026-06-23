@@ -1,51 +1,152 @@
-﻿@page "/Account/Manage"
+@page "/Account/Manage"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
+@using SRVS.Domain.Enums
 @using SRVS.Web.Data
 
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
+@inject ILogger<Index> Logger
 
-<PageTitle>Profile</PageTitle>
+<PageTitle>Manage Account</PageTitle>
 
-<h3>Profile</h3>
-<StatusMessage />
+<section class="manage-account">
+    <div class="manage-account__header">
+        <a class="btn btn-outline-secondary btn-sm" href="/dashboard">Back</a>
+        <div>
+            <p class="text-uppercase small mb-1">Account</p>
+            <h1 class="h3 mb-0">Manage Account</h1>
+        </div>
+    </div>
 
-<div class="row">
-    <div class="col-xl-6">
-        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+    <StatusMessage Message="@message" />
+    <StatusMessage />
+
+    <section class="manage-section">
+        <div class="manage-section__title">
+            <h2>Profile</h2>
+            <p>Keep your account identity current.</p>
+        </div>
+
+        <EditForm Model="ProfileInput" FormName="profile" OnValidSubmit="UpdateProfileAsync" method="post" class="manage-form">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input type="text" value="@username" id="username" class="form-control" placeholder="Choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="ProfileInput.FullName" class="form-label">Full Name</label>
+                    <InputText @bind-Value="ProfileInput.FullName" id="ProfileInput.FullName" class="form-control" autocomplete="name" />
+                    <ValidationMessage For="() => ProfileInput.FullName" class="text-danger" />
+                </div>
+                <div class="col-md-6">
+                    <label for="institutionalId" class="form-label">ID Number</label>
+                    <input id="institutionalId" class="form-control" value="@institutionalId" readonly />
+                </div>
+                <div class="col-md-6">
+                    <label for="ProfileInput.Email" class="form-label">Email Address</label>
+                    <InputText @bind-Value="ProfileInput.Email" id="ProfileInput.Email" class="form-control" autocomplete="email" />
+                    <ValidationMessage For="() => ProfileInput.Email" class="text-danger" />
+                </div>
+                <div class="col-md-6">
+                    <label for="role" class="form-label">Role</label>
+                    <input id="role" class="form-control" value="@roleLabel" readonly />
+                </div>
             </div>
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
-                <label for="Input.PhoneNumber" class="form-label">Phone number</label>
-                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+
+            <div class="manage-actions">
+                <button type="submit" class="btn btn-primary">Edit Profile</button>
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
         </EditForm>
-    </div>
-</div>
+    </section>
+
+    <section class="manage-section">
+        <div class="manage-section__title">
+            <h2>Password</h2>
+            <p>Change the password used to sign in.</p>
+        </div>
+
+        <EditForm Model="PasswordInput" FormName="change-password" OnValidSubmit="ChangePasswordAsync" method="post" class="manage-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="PasswordInput.OldPassword" class="form-label">Current Password</label>
+                    <InputText type="password" @bind-Value="PasswordInput.OldPassword" id="PasswordInput.OldPassword" class="form-control" autocomplete="current-password" />
+                    <ValidationMessage For="() => PasswordInput.OldPassword" class="text-danger" />
+                </div>
+                <div class="col-md-4">
+                    <label for="PasswordInput.NewPassword" class="form-label">New Password</label>
+                    <InputText type="password" @bind-Value="PasswordInput.NewPassword" id="PasswordInput.NewPassword" class="form-control" autocomplete="new-password" />
+                    <ValidationMessage For="() => PasswordInput.NewPassword" class="text-danger" />
+                </div>
+                <div class="col-md-4">
+                    <label for="PasswordInput.ConfirmPassword" class="form-label">Confirm Password</label>
+                    <InputText type="password" @bind-Value="PasswordInput.ConfirmPassword" id="PasswordInput.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <ValidationMessage For="() => PasswordInput.ConfirmPassword" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="manage-actions">
+                <button type="submit" class="btn btn-primary">Update Password</button>
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="manage-section manage-section--danger">
+        <div class="manage-section__title">
+            <h2>Delete Account</h2>
+            <p>This permanently removes your SRVS account.</p>
+        </div>
+
+        <EditForm Model="DeleteInput" FormName="delete-account" OnValidSubmit="DeleteAccountAsync" method="post" class="manage-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+
+            @if (requirePassword)
+            {
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="DeleteInput.Password" class="form-label">Confirm Password</label>
+                        <InputText type="password" @bind-Value="DeleteInput.Password" id="DeleteInput.Password" class="form-control" autocomplete="current-password" />
+                        <ValidationMessage For="() => DeleteInput.Password" class="text-danger" />
+                    </div>
+                </div>
+            }
+
+            <div class="manage-actions">
+                <button type="submit" class="btn btn-danger">Delete Account</button>
+            </div>
+        </EditForm>
+    </section>
+</section>
 
 @code {
     private ApplicationUser? user;
-    private string? username;
-    private string? phoneNumber;
+    private string? message;
+    private string institutionalId = string.Empty;
+    private string roleLabel = string.Empty;
+    private bool requirePassword;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = default!;
+    [SupplyParameterFromForm(FormName = "profile")]
+    private ProfileInputModel ProfileInput { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "change-password")]
+    private PasswordInputModel PasswordInput { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "delete-account")]
+    private DeleteInputModel DeleteInput { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        ProfileInput ??= new();
+        PasswordInput ??= new();
+        DeleteInput ??= new();
 
         user = await UserManager.GetUserAsync(HttpContext.User);
         if (user is null)
@@ -54,13 +155,15 @@
             return;
         }
 
-        username = await UserManager.GetUserNameAsync(user);
-        phoneNumber = await UserManager.GetPhoneNumberAsync(user);
+        institutionalId = user.InstitutionalId;
+        roleLabel = GetRoleLabel(user);
+        requirePassword = await UserManager.HasPasswordAsync(user);
 
-        Input.PhoneNumber ??= phoneNumber;
+        ProfileInput.FullName = string.IsNullOrWhiteSpace(ProfileInput.FullName) ? user.FullName : ProfileInput.FullName;
+        ProfileInput.Email = string.IsNullOrWhiteSpace(ProfileInput.Email) ? user.Email ?? string.Empty : ProfileInput.Email;
     }
 
-    private async Task OnValidSubmitAsync()
+    private async Task UpdateProfileAsync()
     {
         if (user is null)
         {
@@ -68,24 +171,126 @@
             return;
         }
 
-        if (Input.PhoneNumber != phoneNumber)
+        user.FullName = ProfileInput.FullName.Trim();
+
+        if (!string.Equals(user.Email, ProfileInput.Email, StringComparison.OrdinalIgnoreCase))
         {
-            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!setPhoneResult.Succeeded)
+            var emailResult = await UserManager.SetEmailAsync(user, ProfileInput.Email.Trim());
+            if (!emailResult.Succeeded)
             {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
+                message = $"Error: {string.Join(", ", emailResult.Errors.Select(error => error.Description))}";
+                return;
+            }
+
+            var userNameResult = await UserManager.SetUserNameAsync(user, ProfileInput.Email.Trim());
+            if (!userNameResult.Succeeded)
+            {
+                message = $"Error: {string.Join(", ", userNameResult.Errors.Select(error => error.Description))}";
                 return;
             }
         }
 
+        var updateResult = await UserManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            message = $"Error: {string.Join(", ", updateResult.Errors.Select(error => error.Description))}";
+            return;
+        }
+
         await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated.", HttpContext);
     }
 
-    private sealed class InputModel
+    private async Task ChangePasswordAsync()
     {
-        [Phone]
-        [Display(Name = "Phone number")]
-        public string? PhoneNumber { get; set; }
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        var result = await UserManager.ChangePasswordAsync(user, PasswordInput.OldPassword, PasswordInput.NewPassword);
+        if (!result.Succeeded)
+        {
+            message = $"Error: {string.Join(", ", result.Errors.Select(error => error.Description))}";
+            return;
+        }
+
+        await SignInManager.RefreshSignInAsync(user);
+        Logger.LogInformation("User changed their password successfully.");
+        RedirectManager.RedirectToCurrentPageWithStatus("Your password has been changed.", HttpContext);
+    }
+
+    private async Task DeleteAccountAsync()
+    {
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        if (requirePassword && !await UserManager.CheckPasswordAsync(user, DeleteInput.Password))
+        {
+            message = "Error: Incorrect password.";
+            return;
+        }
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var result = await UserManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            message = $"Error: {string.Join(", ", result.Errors.Select(error => error.Description))}";
+            return;
+        }
+
+        await SignInManager.SignOutAsync();
+        Logger.LogInformation("User with ID '{UserId}' deleted themselves.", userId);
+        RedirectManager.RedirectTo("Account/Login");
+    }
+
+    private static string GetRoleLabel(ApplicationUser account) => account.Role switch
+    {
+        UserRoleType.Admin => "System Administrator",
+        UserRoleType.DepartmentHead => "Department Head",
+        UserRoleType.Educator => "Faculty",
+        UserRoleType.Viewer => "Student Viewer",
+        _ => account.Role.ToString()
+    };
+
+    private sealed class ProfileInputModel
+    {
+        [Required]
+        [Display(Name = "Full Name")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email Address")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private sealed class PasswordInputModel
+    {
+        [Required]
+        [DataType(DataType.Password)]
+        [Display(Name = "Current Password")]
+        public string OldPassword { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "New Password")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm Password")]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    private sealed class DeleteInputModel
+    {
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
     }
 }

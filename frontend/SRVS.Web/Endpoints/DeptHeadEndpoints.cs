@@ -28,9 +28,15 @@ public static class DeptHeadEndpoints
                     FullName = u.FullName,
                     SchoolId = u.InstitutionalId,
                     Email = u.Email ?? string.Empty,
-                    AssignedSyllabusId = null,
-                    AssignedSyllabusTitle = null,
-                    Status = "Active"
+                    AssignedSyllabusId = dbContext.SyllabusAssignments
+                        .Where(a => a.StudentId == u.Id && a.IsActive)
+                        .Select(a => (Guid?)a.SyllabusId)
+                        .FirstOrDefault(),
+                    AssignedSyllabusTitle = dbContext.SyllabusAssignments
+                        .Where(a => a.StudentId == u.Id && a.IsActive)
+                        .Join(dbContext.SyllabusDocuments, a => a.SyllabusId, s => s.Id, (_, s) => s.CourseTitle)
+                        .FirstOrDefault(),
+                    Status = dbContext.SyllabusAssignments.Any(a => a.StudentId == u.Id && a.IsActive) ? "Assigned" : "Unassigned"
                 })
                 .ToListAsync();
 
@@ -182,6 +188,130 @@ public static class DeptHeadEndpoints
             }
         });
 
+        group.MapPost("/assign", async (AssignRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+
+            var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == request.StudentId);
+            if (student is null) return Results.BadRequest(new { error = "Student not found." });
+            if (student.Role != SRVS.Domain.Enums.UserRoleType.Viewer || student.AccountStatus != SRVS.Domain.Enums.UserAccountStatus.Active)
+            {
+                return Results.BadRequest(new { error = "Student is not an active student account." });
+            }
+
+            var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
+            if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
+            if (syllabus.Status is not (SRVS.Domain.Enums.SyllabusStatus.Approved or SRVS.Domain.Enums.SyllabusStatus.Submitted))
+            {
+                return Results.BadRequest(new { error = "Only approved or submitted syllabi can be assigned." });
+            }
+
+            using var tx = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTimeOffset.UtcNow;
+                var existing = await dbContext.SyllabusAssignments
+                    .Where(a => a.StudentId == student.Id && a.IsActive)
+                    .ToListAsync();
+
+                foreach (var assignment in existing)
+                {
+                    assignment.IsActive = false;
+                    assignment.DeletedAt = now;
+                }
+
+                var newAssignment = new SyllabusAssignment
+                {
+                    StudentId = student.Id,
+                    SyllabusId = syllabus.Id,
+                    AssignedBy = user.Id,
+                    AssignedAt = now,
+                    IsActive = true
+                };
+
+                dbContext.SyllabusAssignments.Add(newAssignment);
+                await dbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Results.Ok(new AssignmentResponse
+                {
+                    Id = newAssignment.Id,
+                    StudentFullName = student.FullName,
+                    SchoolId = student.InstitutionalId,
+                    SyllabusTitle = syllabus.CourseTitle,
+                    SubjectCode = syllabus.CourseCode,
+                    AssignedAt = newAssignment.AssignedAt,
+                    AssignedBy = user.FullName
+                });
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+        });
+
+        group.MapPost("/assign/bulk", async (BulkAssignRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
+
+            if (request.StudentIds.Count == 0)
+            {
+                return Results.BadRequest(new { error = "Select at least one student." });
+            }
+
+            var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(s => s.Id == request.SyllabusId);
+            if (syllabus is null) return Results.BadRequest(new { error = "Syllabus not found." });
+            if (syllabus.Status is not (SRVS.Domain.Enums.SyllabusStatus.Approved or SRVS.Domain.Enums.SyllabusStatus.Submitted))
+            {
+                return Results.BadRequest(new { error = "Only approved or submitted syllabi can be assigned." });
+            }
+
+            var students = await dbContext.Users
+                .Where(u => request.StudentIds.Contains(u.Id) && u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .ToListAsync();
+
+            using var tx = await dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTimeOffset.UtcNow;
+                foreach (var student in students)
+                {
+                    var existing = await dbContext.SyllabusAssignments
+                        .Where(a => a.StudentId == student.Id && a.IsActive)
+                        .ToListAsync();
+
+                    foreach (var assignment in existing)
+                    {
+                        assignment.IsActive = false;
+                        assignment.DeletedAt = now;
+                    }
+
+                    dbContext.SyllabusAssignments.Add(new SyllabusAssignment
+                    {
+                        StudentId = student.Id,
+                        SyllabusId = syllabus.Id,
+                        AssignedBy = user.Id,
+                        AssignedAt = now,
+                        IsActive = true
+                    });
+                }
+
+                await dbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Results.Ok(new { message = $"Syllabus successfully assigned to {students.Count} student(s).", count = students.Count });
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+        });
 
     }
 }

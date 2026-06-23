@@ -332,12 +332,25 @@
 
     private async Task<IReadOnlyList<DashboardStat>> LoadViewerStatsAsync(ApplicationDbContext dbContext)
     {
-        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished);
-        var recentUpdates = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.IsPublished && document.UpdatedAtUtc >= DateTimeOffset.UtcNow.AddDays(-7));
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return new[]
+            {
+                new DashboardStat("Assigned Syllabi", "0"),
+                new DashboardStat("Recent Assignments", "0")
+            };
+        }
+
+        var assigned = await dbContext.SyllabusAssignments.CountAsync(assignment => assignment.StudentId == currentUserId && assignment.IsActive);
+        var recentAssignments = await dbContext.SyllabusAssignments.CountAsync(assignment =>
+            assignment.StudentId == currentUserId &&
+            assignment.IsActive &&
+            assignment.AssignedAt >= DateTimeOffset.UtcNow.AddDays(-7));
+
         return new[]
         {
-            new DashboardStat("Approved Syllabi", approved.ToString()),
-            new DashboardStat("Recent Updates", recentUpdates.ToString())
+            new DashboardStat("Assigned Syllabi", assigned.ToString()),
+            new DashboardStat("Recent Assignments", recentAssignments.ToString())
         };
     }
 
@@ -449,14 +462,24 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadViewerPanelsAsync(ApplicationDbContext dbContext)
     {
-        var approvedDocs = await dbContext.SyllabusDocuments
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return ([], []);
+        }
+
+        var assignedData = await dbContext.SyllabusAssignments
             .AsNoTracking()
-            .Where(d => d.Status == SyllabusStatus.Approved && d.IsPublished)
-            .OrderByDescending(d => d.UpdatedAtUtc ?? d.CreatedAtUtc)
+            .Where(assignment => assignment.StudentId == currentUserId && assignment.IsActive)
+            .Join(
+                dbContext.SyllabusDocuments.AsNoTracking(),
+                assignment => assignment.SyllabusId,
+                document => document.Id,
+                (assignment, document) => new { Assignment = assignment, Document = document })
+            .OrderByDescending(item => item.Assignment.AssignedAt)
             .Take(5)
             .ToListAsync();
 
-        var primary = approvedDocs.Select(document => new DashboardPrimaryItem(
+        var primary = assignedData.Select(item => item.Document).Select(document => new DashboardPrimaryItem(
             document.CourseCode,
             document.CourseTitle,
             $"{document.Semester} • {document.InstructorName}",
@@ -464,11 +487,11 @@
             $"/syllabi/{document.Id}",
             "View Syllabus")).ToList();
 
-        var activity = approvedDocs.Select(item => new DashboardActivityItem(
-            item.CourseCode,
-            $"New update: {item.CourseTitle}",
-            (item.UpdatedAtUtc ?? item.CreatedAtUtc).ToLocalTime().ToString("g"),
-            $"/syllabi/{item.Id}")).ToList();
+        var activity = assignedData.Select(item => new DashboardActivityItem(
+            item.Document.CourseCode,
+            $"Assigned syllabus: {item.Document.CourseTitle}",
+            item.Assignment.AssignedAt.ToLocalTime().ToString("g"),
+            $"/syllabi/{item.Document.Id}")).ToList();
 
         return (primary, activity);
     }

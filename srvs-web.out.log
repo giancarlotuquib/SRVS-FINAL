@@ -1,34 +1,40 @@
+Starting SRVS web project...
+========================================
+Web Application: http://localhost:5300
+API Endpoints:   http://localhost:5300/api
+API Swagger UI:  http://localhost:5300/swagger
+========================================
 Using launch settings from frontend\SRVS.Web\Properties\launchSettings.json...
 Building...
 C:\Users\buddy\Downloads\SD3 FINALIZATIONIST\SRVS-FINAL\frontend\SRVS.Web\SRVS.Web.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
 C:\Users\buddy\Downloads\SD3 FINALIZATIONIST\SRVS-FINAL\frontend\SRVS.Web\SRVS.Web.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (103ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (104ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       SELECT "MigrationId", "ProductVersion"
       FROM "__EFMigrationsHistory"
       ORDER BY "MigrationId";
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (76ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (68ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       SELECT 1
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (75ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (69ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
           "MigrationId" character varying(150) NOT NULL,
           "ProductVersion" character varying(32) NOT NULL,
           CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
       );
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (81ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (64ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       LOCK TABLE "__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (74ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (64ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       SELECT "MigrationId", "ProductVersion"
       FROM "__EFMigrationsHistory"
       ORDER BY "MigrationId";
 info: Microsoft.EntityFrameworkCore.Migrations[20405]
       No migrations were applied. The database is already up to date.
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (81ms) [Parameters=[@normalizedEmail='?'], CommandType='Text', CommandTimeout='30']
+      Executed DbCommand (72ms) [Parameters=[@normalizedEmail='?'], CommandType='Text', CommandTimeout='30']
       SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
       FROM users AS u
       WHERE u."NormalizedEmail" = @normalizedEmail
@@ -43,64 +49,3 @@ info: Microsoft.Hosting.Lifetime[0]
       Content root path: C:\Users\buddy\Downloads\SD3 FINALIZATIONIST\SRVS-FINAL\frontend\SRVS.Web
 warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
       Failed to determine the https port for redirect.
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (76ms) [Parameters=[@Trim='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
-      FROM users AS u
-      WHERE u."InstitutionalId" = @Trim
-      LIMIT 1
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (72ms) [Parameters=[@user_Id='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."ClaimType", u."ClaimValue", u."UserId"
-      FROM identity.user_claims AS u
-      WHERE u."UserId" = @user_Id
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (71ms) [Parameters=[@normalizedUserName='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
-      FROM users AS u
-      WHERE u."NormalizedUserName" = @normalizedUserName
-      LIMIT 1
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (75ms) [Parameters=[@p20='?', @p0='?' (DbType = Int32), @p1='?' (DbType = Int32), @p2='?', @p21='?', @p3='?' (DbType = DateTime), @p4='?', @p5='?' (DbType = Boolean), @p6='?', @p7='?', @p8='?' (DbType = DateTime), @p9='?' (DbType = Boolean), @p10='?' (DbType = DateTime), @p11='?', @p12='?', @p13='?', @p14='?', @p15='?' (DbType = Boolean), @p16='?' (DbType = Int32), @p17='?', @p18='?' (DbType = Boolean), @p19='?'], CommandType='Text', CommandTimeout='30']
-      UPDATE users SET "AccessFailedCount" = @p0, "AccountStatus" = @p1, "ConcurrencyStamp" = @p2, "CreatedAtUtc" = @p3, "Email" = @p4, "EmailConfirmed" = @p5, "FullName" = @p6, "InstitutionalId" = @p7, "LastLoginAtUtc" = @p8, "LockoutEnabled" = @p9, "LockoutEnd" = @p10, "NormalizedEmail" = @p11, "NormalizedUserName" = @p12, "PasswordHash" = @p13, "PhoneNumber" = @p14, "PhoneNumberConfirmed" = @p15, "Role" = @p16, "SecurityStamp" = @p17, "TwoFactorEnabled" = @p18, "UserName" = @p19
-      WHERE "Id" = @p20 AND "ConcurrencyStamp" = @p21;
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (72ms) [Parameters=[@user_Id='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."ClaimType", u."ClaimValue", u."UserId"
-      FROM identity.user_claims AS u
-      WHERE u."UserId" = @user_Id
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (71ms) [Parameters=[@p='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
-      FROM users AS u
-      WHERE u."Id" = @p
-      LIMIT 1
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (72ms) [Parameters=[@p='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
-      FROM users AS u
-      WHERE u."Id" = @p
-      LIMIT 1
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (70ms) [Parameters=[@p='?'], CommandType='Text', CommandTimeout='30']
-      SELECT u."Id", u."AccessFailedCount", u."AccountStatus", u."ConcurrencyStamp", u."CreatedAtUtc", u."Email", u."EmailConfirmed", u."FullName", u."InstitutionalId", u."LastLoginAtUtc", u."LockoutEnabled", u."LockoutEnd", u."NormalizedEmail", u."NormalizedUserName", u."PasswordHash", u."PhoneNumber", u."PhoneNumberConfirmed", u."Role", u."SecurityStamp", u."TwoFactorEnabled", u."UserName"
-      FROM users AS u
-      WHERE u."Id" = @p
-      LIMIT 1
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (71ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
-      SELECT count(*)::int
-      FROM syllabi AS s
-      WHERE s."Status" = 2 AND s."IsPublished"
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (68ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
-      SELECT count(*)::int
-      FROM syllabi AS s
-      WHERE s."Status" = 2 AND s."IsPublished" AND s."UpdatedAtUtc" >= now() + INTERVAL '-7 days'
-info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (72ms) [Parameters=[@p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
-      SELECT s."Id", s."AcademicYear", s."CourseCode", s."CourseTitle", s."CreatedAtUtc", s."CurrentFileName", s."CurrentStoragePath", s."CurrentVersionNumber", s."InstructorName", s."IsPublished", s."LatestChangeSummary", s."OwnerUserId", s."ReviewedAtUtc", s."ReviewedByUserId", s."ReviewerRemarks", s."Semester", s."Status", s."SubmittedAtUtc", s."UpdatedAtUtc"
-      FROM syllabi AS s
-      WHERE s."Status" = 2 AND s."IsPublished"
-      ORDER BY COALESCE(s."UpdatedAtUtc", s."CreatedAtUtc") DESC
-      LIMIT @p

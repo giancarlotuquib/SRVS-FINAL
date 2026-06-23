@@ -245,3 +245,51 @@
 form {
     margin: 0;
 }
+
+.nav-version {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    padding: 0 0.75rem;
+}
+
+.logout-confirm-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.logout-confirm-modal,
+.logout-confirm-backdrop {
+    display: none;
+}
+
+.logout-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    padding: 1rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.logout-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.logout-confirm-toggle:checked ~ .logout-confirm-modal,
+.logout-confirm-toggle:checked ~ .logout-confirm-backdrop {
+    display: block;
+}
+
+.logout-confirm-modal .modal-dialog {
+    pointer-events: none;
+}
+
+.logout-confirm-modal .modal-content {
+    pointer-events: auto;
+}

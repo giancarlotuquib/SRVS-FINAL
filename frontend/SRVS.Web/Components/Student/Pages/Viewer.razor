@@ -361,7 +361,7 @@
                 canSubmit = SyllabusAccessPolicy.CanSubmit(document, currentUser.Role, currentUser.Id);
                 canRevise = SyllabusAccessPolicy.CanRevise(document, currentUser.Role, currentUser.Id);
 
-                if (!CanCurrentUserViewDocument())
+                if (!await CanCurrentUserViewDocumentAsync(dbContext))
                 {
                     document = null;
                     canReview = false;
@@ -376,21 +376,31 @@
         }
     }
 
-    private bool CanCurrentUserViewDocument()
+    private async Task<bool> CanCurrentUserViewDocumentAsync(ApplicationDbContext dbContext)
     {
         if (currentUser is null || document is null)
         {
             return false;
         }
 
-        return currentUser.Role switch
+        if (currentUser.Role != UserRoleType.Viewer)
         {
-            UserRoleType.Admin => true,
-            UserRoleType.DepartmentHead => true,
-            UserRoleType.Educator => document.OwnerUserId == currentUser.Id,
-            UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
-            _ => false
-        };
+            return currentUser.Role switch
+            {
+                UserRoleType.Admin => true,
+                UserRoleType.DepartmentHead => true,
+                UserRoleType.Educator => document.OwnerUserId == currentUser.Id,
+                _ => false
+            };
+        }
+
+        return document.Status == SyllabusStatus.Approved
+            && document.IsPublished
+            && await dbContext.SyllabusAssignments.AnyAsync(
+                assignment => assignment.StudentId == currentUser.Id
+                    && assignment.SyllabusId == document.Id
+                    && assignment.IsActive
+                    && assignment.DeletedAt == null);
     }
 
     private string GetStatusBadgeClass(SyllabusStatus status) => status switch

@@ -90,7 +90,7 @@ public static class SyllabusEndpoints
 
             if (version is null || version.SyllabusDocument is null) return Results.NotFound();
 
-            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.Id);
+            var hasAccess = await CanAccessSyllabusAsync(dbContext, version.SyllabusDocument, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
 
             return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: false, cancellationToken);
@@ -114,8 +114,7 @@ public static class SyllabusEndpoints
                 
             if (version is null || version.SyllabusDocument is null) return Results.NotFound();
 
-            // Basic permission check - admin, dept head of same dept, or owner
-            var hasAccess = SyllabusAccessPolicy.CanDownload(version.SyllabusDocument, user.Role, user.Id);
+            var hasAccess = await CanAccessSyllabusAsync(dbContext, version.SyllabusDocument, user, cancellationToken);
 
             if (!hasAccess) return Results.Forbid();
 
@@ -169,7 +168,7 @@ public static class SyllabusEndpoints
             
             if (document is null) return Results.NotFound();
 
-            var hasAccess = SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id);
+            var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
 
             var versions = document.Versions
@@ -221,5 +220,29 @@ public static class SyllabusEndpoints
         return asAttachment
             ? Results.File(memoryStream, contentType, fileName, enableRangeProcessing: true)
             : Results.File(memoryStream, contentType, enableRangeProcessing: true);
+    }
+
+    private static async Task<bool> CanAccessSyllabusAsync(
+        ApplicationDbContext dbContext,
+        SyllabusDocument document,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        if (user.Role != SRVS.Domain.Enums.UserRoleType.Viewer)
+        {
+            return SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id);
+        }
+
+        if (!document.IsPublished || document.Status != SRVS.Domain.Enums.SyllabusStatus.Approved)
+        {
+            return false;
+        }
+
+        return await dbContext.SyllabusAssignments.AnyAsync(
+            assignment => assignment.StudentId == user.Id
+                && assignment.SyllabusId == document.Id
+                && assignment.IsActive
+                && assignment.DeletedAt == null,
+            cancellationToken);
     }
 }

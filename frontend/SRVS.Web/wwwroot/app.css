@@ -438,3 +438,54 @@ h1:focus {
     justify-content: center;
 }
 
+.manage-shell {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 1rem 0 2rem;
+}
+
+.manage-account__header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.manage-section {
+    background: #fff;
+    border: 1px solid rgba(20, 92, 61, 0.12);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 8px 24px rgba(15, 74, 49, 0.06);
+}
+
+.manage-section--danger {
+    border-color: rgba(220, 53, 69, 0.22);
+}
+
+.manage-section__title {
+    margin-bottom: 1rem;
+}
+
+.manage-section__title h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.manage-section__title p {
+    color: #65756b;
+    margin-bottom: 0;
+}
+
+.manage-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.manage-form .form-control[readonly] {
+    background: #f6f8f7;
+    color: #4c5d53;
+}
+

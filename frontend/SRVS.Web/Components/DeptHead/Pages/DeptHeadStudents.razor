@@ -1,0 +1,414 @@
+@page "/depthead/students"
+@page "/department-head/students"
+@attribute [Authorize(Roles = "DepartmentHead")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using SRVS.Domain.Entities
+@using SRVS.Domain.Enums
+@using SRVS.Web.DTOs
+@using SRVS.Web.Data
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Student Assignment</PageTitle>
+
+<section class="container py-4">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 p-md-5">
+            <p class="text-uppercase text-secondary small mb-1">Department Head Workspace</p>
+            <h1 class="h3 mb-2">Student Assignment</h1>
+            <p class="text-secondary mb-0">Assign approved or submitted syllabi to active student accounts.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Active Students</h2>
+                    <div class="text-secondary small">@Students.Count student(s) found</div>
+                </div>
+                <button class="btn btn-primary btn-sm" @onclick="OpenBulkAssign" disabled="@(SelectedStudentIds.Count == 0 || isProcessing || isLoading)">
+                    Assign selected (@SelectedStudentIds.Count)
+                </button>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-secondary py-4">Loading students...</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input class="form-check-input" type="checkbox" checked="@IsAllSelected" @onchange="ToggleSelectAll" aria-label="Select all students" />
+                                </th>
+                                <th>Full Name</th>
+                                <th>School ID</th>
+                                <th>Email</th>
+                                <th>Assigned Syllabus</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Students.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-secondary py-4">No active students found.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var student in Students)
+                                {
+                                    <tr>
+                                        <td>
+                                            <input class="form-check-input" type="checkbox" checked="@SelectedStudentIds.Contains(student.Id)" @onchange="value => ToggleStudentSelection(student.Id, value)" disabled="@isProcessing" aria-label="Select @student.FullName" />
+                                        </td>
+                                        <td class="fw-semibold">@student.FullName</td>
+                                        <td>@student.SchoolId</td>
+                                        <td class="text-secondary small">@student.Email</td>
+                                        <td>@(string.IsNullOrWhiteSpace(student.AssignedSyllabusTitle) ? "No syllabus assigned" : student.AssignedSyllabusTitle)</td>
+                                        <td>
+                                            <span class="badge @(student.Status == "Assigned" ? "text-bg-success" : "text-bg-secondary")">@student.Status</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenAssignModal(student.Id, student.FullName)" disabled="@isProcessing">
+                                                @(student.Status == "Assigned" ? "Reassign" : "Assign")
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">Assign syllabus @modalStudentName</h2>
+                    <button type="button" class="btn-close" @onclick="CloseModal" disabled="@isProcessing" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Syllabi.Count == 0)
+                    {
+                        <div class="alert alert-info mb-0">No approved or submitted syllabi are available for assignment.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Title</th>
+                                        <th>Faculty</th>
+                                        <th>Term</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var syllabus in Syllabi)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@syllabus.SubjectCode</td>
+                                            <td>@syllabus.SubjectTitle</td>
+                                            <td class="text-secondary small">@syllabus.FacultyName</td>
+                                            <td>@syllabus.AcademicYear / @syllabus.Semester</td>
+                                            <td><span class="badge text-bg-light">@syllabus.Status</span></td>
+                                            <td class="text-end">
+                                                <button class="btn btn-primary btn-sm" @onclick="() => AssignSyllabusAsync(syllabus.Id)" disabled="@isProcessing">Assign</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal" disabled="@isProcessing">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<StudentResponse> Students { get; set; } = [];
+    private List<SyllabusListResponse> Syllabi { get; set; } = [];
+    private HashSet<string> SelectedStudentIds { get; set; } = [];
+    private bool isLoading = true;
+    private bool isProcessing;
+    private bool showModal;
+    private string modalStudentId = string.Empty;
+    private string modalStudentName = string.Empty;
+    private string? successMessage;
+    private string? errorMessage;
+    private ApplicationUser? currentDeptHead;
+
+    private bool IsAllSelected => Students.Count > 0 && SelectedStudentIds.Count == Students.Count;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            await LoadCurrentUserAsync();
+            if (currentDeptHead?.Role != UserRoleType.DepartmentHead)
+            {
+                Students = [];
+                Syllabi = [];
+                errorMessage = "Unauthorized access to student assignments.";
+                return;
+            }
+
+            await using var dbContext = await DbFactory.CreateDbContextAsync();
+
+            Students = await dbContext.Users
+                .AsNoTracking()
+                .Where(user => user.Role == UserRoleType.Viewer && user.AccountStatus == UserAccountStatus.Active)
+                .Select(user => new StudentResponse
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    SchoolId = user.InstitutionalId,
+                    Email = user.Email ?? string.Empty,
+                    AssignedSyllabusId = dbContext.SyllabusAssignments
+                        .Where(assignment => assignment.StudentId == user.Id && assignment.IsActive)
+                        .Select(assignment => (Guid?)assignment.SyllabusId)
+                        .FirstOrDefault(),
+                    AssignedSyllabusTitle = dbContext.SyllabusAssignments
+                        .Where(assignment => assignment.StudentId == user.Id && assignment.IsActive)
+                        .Join(dbContext.SyllabusDocuments, assignment => assignment.SyllabusId, syllabus => syllabus.Id, (_, syllabus) => syllabus.CourseTitle)
+                        .FirstOrDefault(),
+                    Status = dbContext.SyllabusAssignments.Any(assignment => assignment.StudentId == user.Id && assignment.IsActive) ? "Assigned" : "Unassigned"
+                })
+                .OrderBy(student => student.FullName)
+                .ToListAsync();
+
+            Syllabi = await dbContext.SyllabusDocuments
+                .AsNoTracking()
+                .Where(syllabus => syllabus.Status == SyllabusStatus.Approved || syllabus.Status == SyllabusStatus.Submitted)
+                .OrderByDescending(syllabus => syllabus.SubmittedAtUtc ?? syllabus.UpdatedAtUtc ?? syllabus.CreatedAtUtc)
+                .Select(syllabus => new SyllabusListResponse
+                {
+                    Id = syllabus.Id,
+                    SubjectCode = syllabus.CourseCode,
+                    SubjectTitle = syllabus.CourseTitle,
+                    FacultyName = dbContext.Users
+                        .Where(user => user.Id == syllabus.OwnerUserId)
+                        .Select(user => user.FullName)
+                        .FirstOrDefault() ?? syllabus.InstructorName,
+                    AcademicYear = syllabus.AcademicYear,
+                    Semester = syllabus.Semester,
+                    UploadedAt = syllabus.SubmittedAtUtc ?? syllabus.CreatedAtUtc,
+                    Status = syllabus.Status
+                })
+                .ToListAsync();
+
+            SelectedStudentIds.RemoveWhere(id => Students.All(student => student.Id != id));
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load student assignments: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadCurrentUserAsync()
+    {
+        if (currentDeptHead is not null)
+        {
+            return;
+        }
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentDeptHead = await UserManager.GetUserAsync(authState.User);
+    }
+
+    private void OpenAssignModal(string studentId, string studentName)
+    {
+        modalStudentId = studentId;
+        modalStudentName = $"for {studentName}";
+        successMessage = null;
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private void OpenBulkAssign()
+    {
+        modalStudentId = string.Empty;
+        modalStudentName = $"for {SelectedStudentIds.Count} selected student(s)";
+        successMessage = null;
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task AssignSyllabusAsync(Guid syllabusId)
+    {
+        isProcessing = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await LoadCurrentUserAsync();
+            if (currentDeptHead?.Role != UserRoleType.DepartmentHead)
+            {
+                errorMessage = "Unauthorized action.";
+                return;
+            }
+
+            await using var dbContext = await DbFactory.CreateDbContextAsync();
+            var syllabus = await dbContext.SyllabusDocuments.FirstOrDefaultAsync(item => item.Id == syllabusId);
+            if (syllabus is null || syllabus.Status is not (SyllabusStatus.Approved or SyllabusStatus.Submitted))
+            {
+                errorMessage = "Syllabus not found or not available for assignment.";
+                return;
+            }
+
+            var targetStudentIds = string.IsNullOrWhiteSpace(modalStudentId)
+                ? SelectedStudentIds.ToList()
+                : [modalStudentId];
+
+            if (targetStudentIds.Count == 0)
+            {
+                errorMessage = "Select at least one student.";
+                return;
+            }
+
+            var students = await dbContext.Users
+                .Where(user => targetStudentIds.Contains(user.Id) && user.Role == UserRoleType.Viewer && user.AccountStatus == UserAccountStatus.Active)
+                .ToListAsync();
+
+            if (students.Count == 0)
+            {
+                errorMessage = "No active student accounts were found for this assignment.";
+                return;
+            }
+
+            await using var transaction = await dbContext.Database.BeginTransactionAsync();
+            var now = DateTimeOffset.UtcNow;
+
+            foreach (var student in students)
+            {
+                var existingAssignments = await dbContext.SyllabusAssignments
+                    .Where(assignment => assignment.StudentId == student.Id && assignment.IsActive)
+                    .ToListAsync();
+
+                foreach (var assignment in existingAssignments)
+                {
+                    assignment.IsActive = false;
+                    assignment.DeletedAt = now;
+                }
+
+                dbContext.SyllabusAssignments.Add(new SyllabusAssignment
+                {
+                    StudentId = student.Id,
+                    SyllabusId = syllabus.Id,
+                    AssignedBy = currentDeptHead.Id,
+                    AssignedAt = now,
+                    IsActive = true
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            var assignedCount = students.Count;
+            if (string.IsNullOrWhiteSpace(modalStudentId))
+            {
+                successMessage = $"Syllabus assigned to {assignedCount} student(s).";
+            }
+            else
+            {
+                successMessage = "Syllabus assigned successfully.";
+            }
+
+            SelectedStudentIds.Clear();
+            showModal = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to assign syllabus: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ToggleStudentSelection(string studentId, ChangeEventArgs value)
+    {
+        var isChecked = value.Value is bool checkedValue && checkedValue;
+        if (isChecked)
+        {
+            SelectedStudentIds.Add(studentId);
+        }
+        else
+        {
+            SelectedStudentIds.Remove(studentId);
+        }
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs value)
+    {
+        var isChecked = value.Value is bool checkedValue && checkedValue;
+        SelectedStudentIds.Clear();
+
+        if (isChecked)
+        {
+            foreach (var student in Students)
+            {
+                SelectedStudentIds.Add(student.Id);
+            }
+        }
+    }
+
+}
