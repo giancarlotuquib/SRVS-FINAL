@@ -189,3 +189,44 @@
     right: 0.75rem;
     top: 0.5rem;
 }
+
+.logout-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    padding: 1rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.logout-confirm-modal[hidden] {
+    display: none;
+}
+
+.logout-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    border: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+}
+
+.logout-confirm-backdrop[hidden] {
+    display: none;
+}
+
+.logout-confirm-modal .modal-dialog {
+    pointer-events: none;
+}
+
+.logout-confirm-modal .modal-content {
+    pointer-events: auto;
+    border: 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.24);
+}
+
+.logout-confirm-modal .btn {
+    min-width: 5.5rem;
+}

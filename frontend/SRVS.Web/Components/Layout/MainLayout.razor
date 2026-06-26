@@ -49,6 +49,28 @@
     </main>
 </div>
 
+<div id="logout-confirm" class="logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" aria-describedby="logout-confirm-message" tabindex="-1" hidden>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="logout-confirm-title" class="modal-title h5">Are you sure you want to log out?</h2>
+            </div>
+            <div class="modal-body">
+                <p id="logout-confirm-message" class="mb-0">Your current session will end and you will return to the login page.</p>
+            </div>
+            <div class="modal-footer">
+                <form action="/Account/Logout" method="post" class="m-0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="Account/Login" />
+                    <button type="submit" class="btn btn-primary" data-logout-confirm>Yes, log out</button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-logout-close>No, Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+<button type="button" class="logout-confirm-backdrop" data-logout-close aria-label="Cancel logout" hidden></button>
+
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>

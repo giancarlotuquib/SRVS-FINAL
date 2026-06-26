@@ -489,3 +489,7 @@ h1:focus {
     color: #4c5d53;
 }
 
+body.logout-confirm-open {
+    overflow: hidden;
+}
+

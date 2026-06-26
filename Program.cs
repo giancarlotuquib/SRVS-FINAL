@@ -8,7 +8,7 @@ StopStaleWebProcesses(webProjectPath);
 var psi = new ProcessStartInfo
 {
     FileName = "dotnet",
-    Arguments = "run --project frontend/SRVS.Web --urls http://localhost:5300",
+    Arguments = "run --no-restore --project frontend/SRVS.Web --urls http://localhost:5300",
     UseShellExecute = false,
     RedirectStandardOutput = true,
     RedirectStandardError = true,

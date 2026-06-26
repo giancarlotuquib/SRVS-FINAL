@@ -10,8 +10,6 @@
 @inject IServiceProvider ServiceProvider
 @inject NavigationManager NavigationManager
 
-<input id="logout-confirm-toggle" class="logout-confirm-toggle" type="checkbox" />
-
 <div class="nav-shell">
     <a class="navbar-brand" href="/dashboard">
         <img class="navbar-logo" src="images/cpe_logo.png?v=202606231815" alt="Computer Engineering Department logo" />
@@ -59,10 +57,10 @@
                     </NavLink>
                 </div>
                 <div class="nav-item">
-                    <label class="nav-link nav-link--button" for="logout-confirm-toggle" role="button" tabindex="0">
+                    <button class="nav-link nav-link--button" type="button" data-logout-open aria-haspopup="dialog" aria-controls="logout-confirm">
                         <span class="nav-link__icon nav-link__icon--logout" aria-hidden="true"></span>
                         <span>Logout</span>
-                    </label>
+                    </button>
                 </div>
             </div>
         </Authorized>
@@ -88,31 +86,7 @@
     <div class="nav-version">Version @AppVersion</div>
 </div>
 
-<div class="logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="logout-confirm-title" class="modal-title h5">Log out of SRVS?</h2>
-                <label class="btn-close" for="logout-confirm-toggle" aria-label="Close"></label>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">Your current session will end and you will return to the login page.</p>
-            </div>
-            <div class="modal-footer">
-                <label class="btn btn-secondary" for="logout-confirm-toggle" role="button">Cancel</label>
-                <form action="/Account/Logout" method="post" class="m-0">
-                    <AntiforgeryToken />
-                    <input type="hidden" name="ReturnUrl" value="Account/Login" />
-                    <button type="submit" class="btn btn-danger">Logout</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-<label class="logout-confirm-backdrop" for="logout-confirm-toggle" aria-label="Cancel logout"></label>
-
 @code {
-    private string? currentUrl;
     private ApplicationUser? currentUser;
     private static string AppVersion => Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
@@ -179,7 +153,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
 
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -191,7 +164,6 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
         StateHasChanged();
     }
 
