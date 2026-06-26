@@ -50,21 +50,19 @@
 </div>
 
 <div id="logout-confirm" class="logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" aria-describedby="logout-confirm-message" tabindex="-1" hidden>
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="logout-confirm-title" class="modal-title h5">Are you sure you want to log out?</h2>
+    <div class="logout-confirm-card card">
+        <div class="logout-confirm-card-body card-body">
+            <div class="logout-confirm-content">
+                <h2 id="logout-confirm-title" class="logout-confirm-title">Log out?</h2>
+                <p id="logout-confirm-message" class="logout-confirm-message">Are you sure you want to log out of your account?</p>
             </div>
-            <div class="modal-body">
-                <p id="logout-confirm-message" class="mb-0">Your current session will end and you will return to the login page.</p>
-            </div>
-            <div class="modal-footer">
+            <div class="logout-confirm-actions">
+                <button type="button" class="logout-confirm-cancel" data-logout-close>Cancel</button>
                 <form action="/Account/Logout" method="post" class="m-0">
                     <AntiforgeryToken />
                     <input type="hidden" name="ReturnUrl" value="Account/Login" />
-                    <button type="submit" class="btn btn-primary" data-logout-confirm>Yes, log out</button>
+                    <button type="submit" class="logout-confirm-submit" data-logout-confirm>Yes, log out</button>
                 </form>
-                <button type="button" class="btn btn-secondary" data-logout-close>No, Cancel</button>
             </div>
         </div>
     </div>
