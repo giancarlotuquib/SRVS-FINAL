@@ -44,7 +44,7 @@ internal sealed class ApplicationUserClaimsPrincipalFactory : IUserClaimsPrincip
             UserRoleType.Admin => "Admin",
             UserRoleType.DepartmentHead => "DepartmentHead",
             UserRoleType.Educator => "Educator",
-            UserRoleType.Viewer => "Viewer",
+            UserRoleType.Student => "Student",
             _ => user.Role.ToString()
         };
         identity.AddClaim(new Claim(ClaimTypes.Role, roleValue));

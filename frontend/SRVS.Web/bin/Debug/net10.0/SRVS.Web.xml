@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SRVS.Web</name>
+    </assembly>
+    <members>
+        <member name="T:SRVS.Web.Components.Admin.Services.UserActionService">
+            <summary>
+            Service for handling user account actions (Activate, Deactivate, Delete).
+            Manages database operations and user status transitions.
+            </summary>
+        </member>
+        <member name="M:SRVS.Web.Components.Admin.Services.UserActionService.UpdateUserStatusAsync(System.String,SRVS.Domain.Enums.UserAccountStatus,System.String,System.String)">
+            <summary>
+            Updates a user's account status.
+            </summary>
+            <param name="userId">The ID of the user to update</param>
+            <param name="newStatus">The new account status</param>
+            <param name="actorUserId">The user ID of the admin performing the action</param>
+            <param name="actorName">The display name of the admin performing the action</param>
+            <returns>The updated ApplicationUser, or null if user not found</returns>
+        </member>
+        <member name="M:SRVS.Web.Components.Admin.Services.UserActionService.GetAllUsersAsync">
+            <summary>
+            Gets all users excluding pending approval users, ordered by username.
+            </summary>
+            <returns>A list of users excluding pending approval</returns>
+        </member>
+        <member name="M:SRVS.Web.Components.Admin.Services.UserActionService.IsActionAllowed(SRVS.Web.Data.ApplicationUser,SRVS.Domain.Enums.UserAccountStatus)">
+            <summary>
+            Checks if an action is allowed for a user based on their current status.
+            </summary>
+            <param name="user">The user to check</param>
+            <param name="targetStatus">The target status</param>
+            <returns>True if the action is allowed, false otherwise</returns>
+        </member>
+        <member name="T:Program">
+            <summary>
+            Auto-generated public partial Program class for top-level statement apps.
+            </summary>
+        </member>
+    </members>
+</doc>

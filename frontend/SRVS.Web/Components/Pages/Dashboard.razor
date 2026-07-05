@@ -16,14 +16,14 @@
         var role = user.IsInRole("Admin") ? UserRoleType.Admin :
                    user.IsInRole("DepartmentHead") ? UserRoleType.DepartmentHead :
                    user.IsInRole("Educator") ? UserRoleType.Educator :
-                   user.IsInRole("Viewer") ? UserRoleType.Viewer : (UserRoleType?)null;
+                   user.IsInRole("Student") ? UserRoleType.Student : (UserRoleType?)null;
 
         var target = role switch
         {
             UserRoleType.Admin => "/admin/dashboard",
             UserRoleType.DepartmentHead => "/department-head/dashboard",
             UserRoleType.Educator => "/educator/dashboard",
-            UserRoleType.Viewer => "/viewer/dashboard",
+            UserRoleType.Student => "/viewer/dashboard",
             _ => "/"
         };
 

@@ -21,7 +21,7 @@ public class SyllabusSearchServiceTests
 
         ISyllabusSearchService service = new SyllabusSearchService(factory);
 
-        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Viewer, null, "viewer-user");
+        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Student, null, "viewer-user");
 
         Assert.Single(results.Items);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101" && item.CanDownload);
@@ -229,7 +229,7 @@ public class SyllabusSearchServiceTests
 
         ISyllabusSearchService service = new SyllabusSearchService(factory);
 
-        var document = await service.GetAccessibleDocumentAsync(Guid.Parse("22222222-2222-2222-2222-222222222222"), UserRoleType.Viewer, null, "viewer-user");
+        var document = await service.GetAccessibleDocumentAsync(Guid.Parse("22222222-2222-2222-2222-222222222222"), UserRoleType.Student, null, "viewer-user");
 
         Assert.Null(document);
     }

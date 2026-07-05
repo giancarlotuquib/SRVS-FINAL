@@ -11,7 +11,7 @@ public static class DashboardRouteResolver
             UserRoleType.Admin => "/admin/dashboard",
             UserRoleType.DepartmentHead => "/department-head/dashboard",
             UserRoleType.Educator => "/educator/dashboard",
-            UserRoleType.Viewer => "/viewer/dashboard",
+            UserRoleType.Student => "/viewer/dashboard",
             _ => "/dashboard"
         };
     }

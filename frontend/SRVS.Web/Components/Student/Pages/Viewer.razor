@@ -383,7 +383,7 @@
             return false;
         }
 
-        if (currentUser.Role != UserRoleType.Viewer)
+        if (currentUser.Role != UserRoleType.Student)
         {
             return currentUser.Role switch
             {
@@ -398,7 +398,7 @@
             && document.IsPublished
             && await dbContext.SyllabusAssignments.AnyAsync(
                 assignment => assignment.StudentId == currentUser.Id
-                    && assignment.SyllabusId == document.Id
+                    && assignment.SyllabusDocId == document.Id
                     && assignment.IsActive
                     && assignment.DeletedAt == null);
     }

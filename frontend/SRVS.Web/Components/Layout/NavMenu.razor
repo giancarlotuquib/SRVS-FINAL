@@ -113,7 +113,7 @@
         UserRoleType.Admin => "System Administrator",
         UserRoleType.DepartmentHead => "Department Head",
         UserRoleType.Educator => "Faculty",
-        UserRoleType.Viewer => "Student Viewer",
+        UserRoleType.Student => "Student",
         _ => "Approved User"
     };
 
@@ -123,7 +123,8 @@
         [
             new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Admin), "nav-link__icon--dashboard", NavLinkMatch.All),
             new("Registration Approvals", "/admin/registrations", "nav-link__icon--users"),
-            new("User Management", "/admin/user-management", "nav-link__icon--users")
+            new("User Management", "/admin/user-management", "nav-link__icon--users"),
+            new("Audit Logs", "/admin/audit-logs", "nav-link__icon--audit")
         ],
         UserRoleType.DepartmentHead =>
         [
@@ -139,9 +140,9 @@
             new("Upload Syllabus", "/educator/upload", "nav-link__icon--upload"),
             new("Syllabus Repository", "/syllabi/search", "nav-link__icon--repository")
         ],
-        UserRoleType.Viewer =>
+        UserRoleType.Student =>
         [
-            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Viewer), "nav-link__icon--dashboard", NavLinkMatch.All),
+            new("Dashboard", DashboardRouteResolver.GetRoute(UserRoleType.Student), "nav-link__icon--dashboard", NavLinkMatch.All),
             new("Browse Syllabi", "/syllabi/search", "nav-link__icon--repository")
         ],
         _ =>

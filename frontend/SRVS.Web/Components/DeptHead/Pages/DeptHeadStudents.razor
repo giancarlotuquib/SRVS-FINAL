@@ -203,20 +203,20 @@
 
             Students = await dbContext.Users
                 .AsNoTracking()
-                .Where(user => user.Role == UserRoleType.Viewer && user.AccountStatus == UserAccountStatus.Active)
+                .Where(user => user.Role == UserRoleType.Student && user.AccountStatus == UserAccountStatus.Active)
                 .Select(user => new StudentResponse
                 {
                     Id = user.Id,
                     FullName = user.FullName,
-                    SchoolId = user.InstitutionalId,
+                    SchoolId = user.Id,
                     Email = user.Email ?? string.Empty,
                     AssignedSyllabusId = dbContext.SyllabusAssignments
                         .Where(assignment => assignment.StudentId == user.Id && assignment.IsActive)
-                        .Select(assignment => (Guid?)assignment.SyllabusId)
+                        .Select(assignment => (Guid?)assignment.SyllabusDocId)
                         .FirstOrDefault(),
                     AssignedSyllabusTitle = dbContext.SyllabusAssignments
                         .Where(assignment => assignment.StudentId == user.Id && assignment.IsActive)
-                        .Join(dbContext.SyllabusDocuments, assignment => assignment.SyllabusId, syllabus => syllabus.Id, (_, syllabus) => syllabus.CourseTitle)
+                        .Join(dbContext.SyllabusDocuments, assignment => assignment.SyllabusDocId, syllabus => syllabus.Id, (_, syllabus) => syllabus.CourseTitle)
                         .FirstOrDefault(),
                     Status = dbContext.SyllabusAssignments.Any(assignment => assignment.StudentId == user.Id && assignment.IsActive) ? "Assigned" : "Unassigned"
                 })
@@ -323,7 +323,7 @@
             }
 
             var students = await dbContext.Users
-                .Where(user => targetStudentIds.Contains(user.Id) && user.Role == UserRoleType.Viewer && user.AccountStatus == UserAccountStatus.Active)
+                .Where(user => targetStudentIds.Contains(user.Id) && user.Role == UserRoleType.Student && user.AccountStatus == UserAccountStatus.Active)
                 .ToListAsync();
 
             if (students.Count == 0)
@@ -350,9 +350,12 @@
                 dbContext.SyllabusAssignments.Add(new SyllabusAssignment
                 {
                     StudentId = student.Id,
-                    SyllabusId = syllabus.Id,
+                    StudentFullName = student.FullName,
+                    SyllabusId = Math.Abs(syllabus.Id.GetHashCode() % 100000).ToString("D5"),
+                    SyllabusDocId = syllabus.Id,
                     AssignedBy = currentDeptHead.Id,
-                    AssignedAt = now,
+                    AssignedAt = syllabus.CourseCode,
+                    AssignedAtDate = now,
                     IsActive = true
                 });
             }

@@ -121,7 +121,7 @@
     private SearchModel search = new();
     private SyllabusSearchResults results = new([], 0);
     private ApplicationUser? currentUser;
-    private string roleLabel = "Viewer";
+    private string roleLabel = "Student";
     private string? message;
     private bool hasLoadedCurrentUser;
     private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?')[0].Trim('/');

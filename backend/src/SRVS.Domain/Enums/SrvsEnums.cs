@@ -5,7 +5,7 @@ public enum UserRoleType
     Admin = 0,
     DepartmentHead = 1,
     Educator = 2,
-    Viewer = 3
+    Student = 3
 }
 
 public enum UserAccountStatus

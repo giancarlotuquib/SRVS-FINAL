@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Web.Data;
 
@@ -22,8 +23,10 @@ public class UserActionService
     /// </summary>
     /// <param name="userId">The ID of the user to update</param>
     /// <param name="newStatus">The new account status</param>
+    /// <param name="actorUserId">The user ID of the admin performing the action</param>
+    /// <param name="actorName">The display name of the admin performing the action</param>
     /// <returns>The updated ApplicationUser, or null if user not found</returns>
-    public async Task<ApplicationUser?> UpdateUserStatusAsync(string userId, UserAccountStatus newStatus)
+    public async Task<ApplicationUser?> UpdateUserStatusAsync(string userId, UserAccountStatus newStatus, string actorUserId, string actorName)
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
 
@@ -34,6 +37,34 @@ public class UserActionService
         }
 
         user.AccountStatus = newStatus;
+
+        var actionType = newStatus switch
+        {
+            UserAccountStatus.Active => AuditActionType.AccountActivated,
+            UserAccountStatus.Suspended => AuditActionType.AccountDeactivated,
+            UserAccountStatus.Deleted => AuditActionType.AccountDeleted,
+            _ => AuditActionType.RoleUpdated
+        };
+
+        var actionDesc = newStatus switch
+        {
+            UserAccountStatus.Active => $"Activated user account '{user.Email}'.",
+            UserAccountStatus.Suspended => $"Deactivated user account '{user.Email}'.",
+            UserAccountStatus.Deleted => $"Soft-deleted user account '{user.Email}'.",
+            _ => $"Updated status of user '{user.Email}' to {newStatus}."
+        };
+
+        dbContext.AuditLogEntries.Add(new AuditLogEntry
+        {
+            UserId = actorUserId,
+            UserDisplayName = actorName,
+            ActionType = actionType,
+            ResultStatus = AuditResultStatus.Success,
+            Description = actionDesc,
+            EntityType = nameof(ApplicationUser),
+            EntityId = user.Id
+        });
+
         await dbContext.SaveChangesAsync();
 
         return user;

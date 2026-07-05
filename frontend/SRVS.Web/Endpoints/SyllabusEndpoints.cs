@@ -7,6 +7,7 @@ using SRVS.Application.Models;
 using SRVS.Domain.Entities;
 using SRVS.Application.Services;
 using SRVS.Web.Data;
+using SRVS.Web.DTOs;
 using System.IO;
 
 namespace SRVS.Web.Endpoints;
@@ -149,6 +150,7 @@ public static class SyllabusEndpoints
             var results = await syllabusSearchService.SearchAsync(new SyllabusSearchRequest(term, null, maxResults <= 0 ? 100 : maxResults), user.Role, user.Id, cancellationToken);
             return Results.Ok(results);
         })
+        .Produces<SyllabusSearchResults>(StatusCodes.Status200OK)
         .WithName("SearchSyllabi");
 
         // Get syllabus versions
@@ -173,19 +175,20 @@ public static class SyllabusEndpoints
 
             var versions = document.Versions
                 .OrderByDescending(v => v.VersionNumber)
-                .Select(v => new
+                .Select(v => new SyllabusVersionResponse
                 {
-                    v.Id,
-                    v.VersionNumber,
-                    v.FileName,
-                    v.UploadedAtUtc,
-                    v.UploadedByName,
-                    v.ChangeSummary
+                    Id = v.Id,
+                    VersionNumber = v.VersionNumber,
+                    FileName = v.FileName,
+                    UploadedAtUtc = v.UploadedAtUtc,
+                    UploadedByName = v.UploadedByName,
+                    ChangeSummary = v.ChangeSummary
                 })
                 .ToList();
 
             return Results.Ok(versions);
         })
+        .Produces<List<SyllabusVersionResponse>>(StatusCodes.Status200OK)
         .WithName("GetSyllabusVersions");
 
         return app;
@@ -228,7 +231,7 @@ public static class SyllabusEndpoints
         ApplicationUser user,
         CancellationToken cancellationToken)
     {
-        if (user.Role != SRVS.Domain.Enums.UserRoleType.Viewer)
+        if (user.Role != SRVS.Domain.Enums.UserRoleType.Student)
         {
             return SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id);
         }
@@ -240,7 +243,7 @@ public static class SyllabusEndpoints
 
         return await dbContext.SyllabusAssignments.AnyAsync(
             assignment => assignment.StudentId == user.Id
-                && assignment.SyllabusId == document.Id
+                && assignment.SyllabusDocId == document.Id
                 && assignment.IsActive
                 && assignment.DeletedAt == null,
             cancellationToken);

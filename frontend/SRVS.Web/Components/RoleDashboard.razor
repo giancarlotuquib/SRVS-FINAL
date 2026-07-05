@@ -31,7 +31,7 @@
     </div>
 
     <div class="row g-4">
-        <div class="@(Role == UserRoleType.Viewer ? "col-12" : "col-lg-7")">
+        <div class="@(Role == UserRoleType.Student ? "col-12" : "col-lg-7")">
             <div class="card p-2 h-100">
                 <div class="card-body">
                     <h2 class="h5">@PrimaryPanelTitle</h2>
@@ -126,7 +126,7 @@
             </div>
         </div>
 
-        @if (Role != UserRoleType.Viewer)
+        @if (Role != UserRoleType.Student)
         {
             <div class="col-lg-5">
                 <div class="card p-2 h-100">
@@ -177,12 +177,13 @@
     private IReadOnlyList<DashboardPrimaryItem> PrimaryItems { get; set; } = [];
     private IReadOnlyList<DashboardActivityItem> RecentItems { get; set; } = [];
     private IReadOnlyList<DashboardLink> QuickLinks { get; set; } = [];
+
     private string RoleLabel => Role switch
     {
         UserRoleType.Admin => "System Administrator",
         UserRoleType.DepartmentHead => "Department Head",
         UserRoleType.Educator => "Faculty",
-        UserRoleType.Viewer => "Student",
+        UserRoleType.Student => "Student",
         _ => "SRVS"
     };
 
@@ -191,7 +192,7 @@
         UserRoleType.Admin => "Manage Computer Engineering Department program, user approvals, and audit trails",
         UserRoleType.DepartmentHead => "Computer Engineering Department syllabi review and oversight",
         UserRoleType.Educator => "Computer Engineering Department syllabi, drafts, and revisions",
-        UserRoleType.Viewer => "Computer Engineering Department Syllabus Repository",
+        UserRoleType.Student => "Computer Engineering Department Syllabus Repository",
         _ => "Dashboard"
     };
 
@@ -200,7 +201,7 @@
         UserRoleType.Admin => "Pending Registrations",
         UserRoleType.DepartmentHead => "Pending CE Syllabus Reviews",
         UserRoleType.Educator => "Syllabus Repository",
-        UserRoleType.Viewer => "My Assigned Syllabi",
+        UserRoleType.Student => "My Assigned Syllabi",
         _ => "Overview"
     };
 
@@ -243,7 +244,7 @@
             UserRoleType.Admin => await LoadAdminStatsAsync(dbContext),
             UserRoleType.DepartmentHead => await LoadDepartmentHeadStatsAsync(dbContext),
             UserRoleType.Educator => await LoadEducatorStatsAsync(dbContext),
-            UserRoleType.Viewer => await LoadViewerStatsAsync(dbContext),
+            UserRoleType.Student => await LoadViewerStatsAsync(dbContext),
             _ => []
         };
 
@@ -345,7 +346,7 @@
         var recentAssignments = await dbContext.SyllabusAssignments.CountAsync(assignment =>
             assignment.StudentId == currentUserId &&
             assignment.IsActive &&
-            assignment.AssignedAt >= DateTimeOffset.UtcNow.AddDays(-7));
+            assignment.AssignedAtDate >= DateTimeOffset.UtcNow.AddDays(-7));
 
         return new[]
         {
@@ -472,10 +473,10 @@
             .Where(assignment => assignment.StudentId == currentUserId && assignment.IsActive)
             .Join(
                 dbContext.SyllabusDocuments.AsNoTracking(),
-                assignment => assignment.SyllabusId,
+                assignment => assignment.SyllabusDocId,
                 document => document.Id,
                 (assignment, document) => new { Assignment = assignment, Document = document })
-            .OrderByDescending(item => item.Assignment.AssignedAt)
+            .OrderByDescending(item => item.Assignment.AssignedAtDate)
             .Take(5)
             .ToListAsync();
 
@@ -490,7 +491,7 @@
         var activity = assignedData.Select(item => new DashboardActivityItem(
             item.Document.CourseCode,
             $"Assigned syllabus: {item.Document.CourseTitle}",
-            item.Assignment.AssignedAt.ToLocalTime().ToString("g"),
+            item.Assignment.AssignedAtDate.ToLocalTime().ToString("g"),
             $"/syllabi/{item.Document.Id}")).ToList();
 
         return (primary, activity);

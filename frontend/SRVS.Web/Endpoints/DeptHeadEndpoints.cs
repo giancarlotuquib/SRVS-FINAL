@@ -21,27 +21,30 @@ public static class DeptHeadEndpoints
             if (user.Role != SRVS.Domain.Enums.UserRoleType.DepartmentHead) return Results.Forbid();
 
             var students = await dbContext.Users
-                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .Where(u => u.Role == SRVS.Domain.Enums.UserRoleType.Student && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
                 .Select(u => new StudentResponse
                 {
                     Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
                     FullName = u.FullName,
-                    SchoolId = u.InstitutionalId,
+                    SchoolId = u.Id,
                     Email = u.Email ?? string.Empty,
                     AssignedSyllabusId = dbContext.SyllabusAssignments
                         .Where(a => a.StudentId == u.Id && a.IsActive)
-                        .Select(a => (Guid?)a.SyllabusId)
+                        .Select(a => (Guid?)a.SyllabusDocId)
                         .FirstOrDefault(),
                     AssignedSyllabusTitle = dbContext.SyllabusAssignments
                         .Where(a => a.StudentId == u.Id && a.IsActive)
-                        .Join(dbContext.SyllabusDocuments, a => a.SyllabusId, s => s.Id, (_, s) => s.CourseTitle)
+                        .Join(dbContext.SyllabusDocuments, a => a.SyllabusDocId, s => s.Id, (_, s) => s.CourseTitle)
                         .FirstOrDefault(),
                     Status = dbContext.SyllabusAssignments.Any(a => a.StudentId == u.Id && a.IsActive) ? "Assigned" : "Unassigned"
                 })
                 .ToListAsync();
 
             return Results.Ok(students);
-        });
+        })
+        .Produces<List<StudentResponse>>(StatusCodes.Status200OK);
 
         group.MapGet("/syllabi", async (HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager, int? status) =>
         {
@@ -74,7 +77,8 @@ public static class DeptHeadEndpoints
                 .ToListAsync();
 
             return Results.Ok(syllabi);
-        });
+        })
+        .Produces<List<SyllabusListResponse>>(StatusCodes.Status200OK);
 
         group.MapGet("/syllabi/pending", async (HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
@@ -112,7 +116,8 @@ public static class DeptHeadEndpoints
                 PendingCount = pendingSyllabi.Count,
                 PendingSyllabi = pendingSyllabi
             });
-        });
+        })
+        .Produces<object>(StatusCodes.Status200OK);
 
         group.MapPut("/syllabi/{syllabusId:guid}/approve", async (Guid syllabusId, ReviewSyllabusRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
@@ -196,7 +201,7 @@ public static class DeptHeadEndpoints
 
             var student = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == request.StudentId);
             if (student is null) return Results.BadRequest(new { error = "Student not found." });
-            if (student.Role != SRVS.Domain.Enums.UserRoleType.Viewer || student.AccountStatus != SRVS.Domain.Enums.UserAccountStatus.Active)
+            if (student.Role != SRVS.Domain.Enums.UserRoleType.Student || student.AccountStatus != SRVS.Domain.Enums.UserAccountStatus.Active)
             {
                 return Results.BadRequest(new { error = "Student is not an active student account." });
             }
@@ -225,9 +230,12 @@ public static class DeptHeadEndpoints
                 var newAssignment = new SyllabusAssignment
                 {
                     StudentId = student.Id,
-                    SyllabusId = syllabus.Id,
+                    StudentFullName = student.FullName,
+                    SyllabusId = Math.Abs(syllabus.Id.GetHashCode() % 100000).ToString("D5"),
+                    SyllabusDocId = syllabus.Id,
                     AssignedBy = user.Id,
-                    AssignedAt = now,
+                    AssignedAt = syllabus.CourseCode,
+                    AssignedAtDate = now,
                     IsActive = true
                 };
 
@@ -239,10 +247,10 @@ public static class DeptHeadEndpoints
                 {
                     Id = newAssignment.Id,
                     StudentFullName = student.FullName,
-                    SchoolId = student.InstitutionalId,
+                    SchoolId = student.Id,
                     SyllabusTitle = syllabus.CourseTitle,
                     SubjectCode = syllabus.CourseCode,
-                    AssignedAt = newAssignment.AssignedAt,
+                    AssignedAt = newAssignment.AssignedAtDate,
                     AssignedBy = user.FullName
                 });
             }
@@ -251,7 +259,8 @@ public static class DeptHeadEndpoints
                 await tx.RollbackAsync();
                 throw;
             }
-        });
+        })
+        .Produces<AssignmentResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/assign/bulk", async (BulkAssignRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
@@ -272,7 +281,7 @@ public static class DeptHeadEndpoints
             }
 
             var students = await dbContext.Users
-                .Where(u => request.StudentIds.Contains(u.Id) && u.Role == SRVS.Domain.Enums.UserRoleType.Viewer && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
+                .Where(u => request.StudentIds.Contains(u.Id) && u.Role == SRVS.Domain.Enums.UserRoleType.Student && u.AccountStatus == SRVS.Domain.Enums.UserAccountStatus.Active)
                 .ToListAsync();
 
             using var tx = await dbContext.Database.BeginTransactionAsync();
@@ -294,9 +303,12 @@ public static class DeptHeadEndpoints
                     dbContext.SyllabusAssignments.Add(new SyllabusAssignment
                     {
                         StudentId = student.Id,
-                        SyllabusId = syllabus.Id,
+                        StudentFullName = student.FullName,
+                        SyllabusId = Math.Abs(syllabus.Id.GetHashCode() % 100000).ToString("D5"),
+                        SyllabusDocId = syllabus.Id,
                         AssignedBy = user.Id,
-                        AssignedAt = now,
+                        AssignedAt = syllabus.CourseCode,
+                        AssignedAtDate = now,
                         IsActive = true
                     });
                 }
@@ -311,7 +323,8 @@ public static class DeptHeadEndpoints
                 await tx.RollbackAsync();
                 throw;
             }
-        });
+        })
+        .Produces<BulkAssignResponse>(StatusCodes.Status200OK);
 
     }
 }

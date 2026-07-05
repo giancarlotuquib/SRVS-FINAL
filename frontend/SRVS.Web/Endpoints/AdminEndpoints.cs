@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Web.Data;
+using SRVS.Web.DTOs;
 using SRVS.Web.Components.Admin.Models;
 
 namespace SRVS.Web.Endpoints;
@@ -23,19 +24,22 @@ public static class AdminEndpoints
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
             var users = await dbContext.Users
-                .Select(u => new
+                .Select(u => new AdminUserResponse
                 {
-                    u.Id,
-                    u.Email,
-                    u.FullName,
-                    u.InstitutionalId,
-                    u.Role,
-                    u.AccountStatus
+                    Id = u.Id,
+                    Email = u.Email,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    FullName = u.FullName,
+                    SchoolId = u.Id,
+                    Role = u.Role,
+                    AccountStatus = u.AccountStatus
                 })
                 .ToListAsync();
 
             return Results.Ok(users);
-        });
+        })
+        .Produces<List<AdminUserResponse>>(StatusCodes.Status200OK);
 
         adminGroup.MapPut("/users/{id}/activate", async (string id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
@@ -90,19 +94,22 @@ public static class AdminEndpoints
         {
             var registrations = await dbContext.Users
                 .Where(r => r.AccountStatus == UserAccountStatus.PendingApproval)
-                .Select(r => new
+                .Select(r => new RegistrationResponse
                 {
-                    r.Id,
-                    r.Email,
-                    r.FullName,
-                    r.InstitutionalId,
+                    Id = r.Id,
+                    Email = r.Email,
+                    FirstName = r.FirstName,
+                    LastName = r.LastName,
+                    FullName = r.FullName,
+                    SchoolId = r.Id,
                     RequestedRole = r.Role,
-                    r.CreatedAtUtc,
+                    CreatedAtUtc = r.CreatedAtUtc,
                     Status = r.AccountStatus
                 })
                 .ToListAsync(cancellationToken);
             return Results.Ok(registrations);
         })
+        .Produces<List<RegistrationResponse>>(StatusCodes.Status200OK)
         .WithName("GetPendingRegistrations");
 
         adminGroup.MapGet("/registrations/all", async (
@@ -115,20 +122,23 @@ public static class AdminEndpoints
             if (user.Role != UserRoleType.Admin) return Results.Forbid();
 
             var registrations = await dbContext.Users
-                .Select(r => new
+                .Select(r => new RegistrationResponse
                 {
-                    r.Id,
-                    r.Email,
-                    r.FullName,
-                    r.InstitutionalId,
+                    Id = r.Id,
+                    Email = r.Email,
+                    FirstName = r.FirstName,
+                    LastName = r.LastName,
+                    FullName = r.FullName,
+                    SchoolId = r.Id,
                     RequestedRole = r.Role,
-                    r.CreatedAtUtc,
+                    CreatedAtUtc = r.CreatedAtUtc,
                     Status = r.AccountStatus
                 })
                 .ToListAsync();
 
             return Results.Ok(registrations);
         })
+        .Produces<List<RegistrationResponse>>(StatusCodes.Status200OK)
         .WithName("GetAllRegistrations");
 
         adminGroup.MapPut("/registrations/{id}/approve", async (

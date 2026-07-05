@@ -48,7 +48,7 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         {
             await signInManager.SignOutAsync();
             return TypedResults.LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) ? "~/Account/Login" : $"~/{returnUrl}");
-        });
+        }).DisableAntiforgery();
 
         accountGroup.MapPost("/PasskeyCreationOptions", async (
             HttpContext context,

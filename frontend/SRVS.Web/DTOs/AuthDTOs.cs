@@ -34,7 +34,7 @@ public class RegisterRequest
 
     [Required(ErrorMessage = "Role is required.")]
     [JsonPropertyName("role")]
-    public SRVS.Domain.Enums.UserRoleType Role { get; set; } = SRVS.Domain.Enums.UserRoleType.Viewer;
+    public SRVS.Domain.Enums.UserRoleType Role { get; set; } = SRVS.Domain.Enums.UserRoleType.Student;
 
     [Required(ErrorMessage = "Password is required.")]
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]

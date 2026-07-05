@@ -73,7 +73,7 @@
                             <InputSelect id="RegisterInput.Role" class="form-select" @bind-Value="RegisterInput.Role">
                                 <option value="@UserRoleType.DepartmentHead">Department Head</option>
                                 <option value="@UserRoleType.Educator">Faculty</option>
-                                <option value="@UserRoleType.Viewer">Student</option>
+                                <option value="@UserRoleType.Student">Student</option>
                             </InputSelect>
                             <ValidationMessage For="() => RegisterInput.Role" class="text-danger small" />
                         </div>
@@ -142,7 +142,7 @@
         {
             RegisterInput.SchoolId = RegisterInput.SchoolId?.Trim() ?? string.Empty;
 
-            if (RegisterInput.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Viewer))
+            if (RegisterInput.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
             {
                 errorMessage = "Please select a valid role.";
                 return;
@@ -195,7 +195,7 @@
 
     private static string GetSchoolIdValidationMessage(UserRoleType role) => role switch
     {
-        UserRoleType.Viewer => "Students must use a 10-digit School ID.",
+        UserRoleType.Student => "Students must use a 10-digit School ID.",
         UserRoleType.Educator => "Faculty must use a 5-digit School ID.",
         UserRoleType.DepartmentHead => "Department Heads must use a 5-digit School ID.",
         _ => "Please select a valid role."

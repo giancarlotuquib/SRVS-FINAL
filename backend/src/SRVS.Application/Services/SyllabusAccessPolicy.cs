@@ -12,7 +12,7 @@ public static class SyllabusAccessPolicy
             UserRoleType.Admin => true,
             UserRoleType.DepartmentHead => true,
             UserRoleType.Educator => document.OwnerUserId == userId,
-            UserRoleType.Viewer => document.Status == SyllabusStatus.Approved && document.IsPublished,
+            UserRoleType.Student => document.Status == SyllabusStatus.Approved && document.IsPublished,
             _ => false
         };
     }

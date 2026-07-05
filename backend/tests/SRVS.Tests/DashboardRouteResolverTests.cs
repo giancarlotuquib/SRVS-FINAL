@@ -9,7 +9,7 @@ public class DashboardRouteResolverTests
     [InlineData(UserRoleType.Admin, "/admin/dashboard")]
     [InlineData(UserRoleType.DepartmentHead, "/department-head/dashboard")]
     [InlineData(UserRoleType.Educator, "/educator/dashboard")]
-    [InlineData(UserRoleType.Viewer, "/viewer/dashboard")]
+    [InlineData(UserRoleType.Student, "/viewer/dashboard")]
     public void GetRoute_ReturnsRoleSpecificDashboard(UserRoleType role, string expectedRoute)
     {
         var route = DashboardRouteResolver.GetRoute(role);

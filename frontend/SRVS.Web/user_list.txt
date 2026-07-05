@@ -1,0 +1,9 @@
+Id: 2026000002 | UserName: gian@edu.ph | Email: gian@edu.ph | FullName: Gian Carlo | Role: Student | Status: Active
+Id: 12345 | UserName: eric@edu.ph | Email: eric@edu.ph | FullName: eric geonzon | Role: DepartmentHead | Status: Active
+Id: 10004 | UserName: ralph@edu.ph | Email: ralph@edu.ph | FullName: Ralph Lima | Role: DepartmentHead | Status: Active
+Id: 10002 | UserName: john@edu.ph | Email: john@edu.ph | FullName: John Doe | Role: DepartmentHead | Status: Active
+Id: 10003 | UserName: alserge@edu.ph | Email: alserge@edu.ph | FullName: Alserge Miraveles | Role: Educator | Status: Active
+Id: 10001 | UserName: jane@edu.ph | Email: jane@edu.ph | FullName: Jane Doe | Role: Educator | Status: Suspended
+Id: 2026000001 | UserName: giannis@edu.ph | Email: giannis@edu.ph | FullName: Giannis Akumpo | Role: Student | Status: Active
+Id: 00000 | UserName: admin@srvs.local | Email: admin@srvs.local | FullName: System Administrator | Role: Admin | Status: Active
+Id: 12346 | UserName: testdepthead@srvs.com | Email: testdepthead@srvs.com | FullName: Test DeptHead | Role: Educator | Status: PendingApproval

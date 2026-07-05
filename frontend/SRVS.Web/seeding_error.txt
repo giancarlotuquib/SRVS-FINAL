@@ -1,0 +1,2 @@
+System.InvalidOperationException: Unable to seed SRVS admin account: DuplicateUserName: Username 'admin@srvs.local' is already taken.
+   at Program.<<Main>$>g__SeedSrvsDataAsync|0_8(WebApplication app) in C:\Users\Gian\Dropbox\PC\Downloads\SRVS\SRVS-FINAL-1\frontend\SRVS.Web\Program.cs:line 192

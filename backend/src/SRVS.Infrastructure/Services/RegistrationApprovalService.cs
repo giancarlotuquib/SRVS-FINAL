@@ -34,9 +34,9 @@ public class RegistrationApprovalService(
         }
         else if (callerRole == UserRoleType.Admin)
         {
-            // Admin can approve DepartmentHead, Faculty (Educator) and Student (Viewer) registrations
+            // Admin can approve DepartmentHead, Faculty (Educator) and Student registrations
             query = query.Where(u => u.Role == UserRoleType.DepartmentHead
-                                     || u.Role == UserRoleType.Viewer
+                                     || u.Role == UserRoleType.Student
                                      || u.Role == UserRoleType.Educator);
         }
 
@@ -79,7 +79,21 @@ public class RegistrationApprovalService(
 
         user.AccountStatus = UserAccountStatus.Active;
         
-        await userManager.UpdateAsync(user);
+        var result = await userManager.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            dbContext.AuditLogEntries.Add(new AuditLogEntry
+            {
+                UserId = reviewerUserId,
+                UserDisplayName = reviewerName,
+                ActionType = AuditActionType.RegistrationApproved,
+                ResultStatus = AuditResultStatus.Success,
+                Description = $"Approved registration for user '{user.Email}' with role '{user.Role}'.",
+                EntityType = nameof(ApplicationUser),
+                EntityId = user.Id
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task RejectAsync(string targetUserId, string reviewerUserId, string reviewerName, string reviewRemarks, CancellationToken cancellationToken = default)
@@ -94,7 +108,21 @@ public class RegistrationApprovalService(
 
         user.AccountStatus = UserAccountStatus.Rejected;
 
-        await userManager.UpdateAsync(user);
+        var result = await userManager.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            dbContext.AuditLogEntries.Add(new AuditLogEntry
+            {
+                UserId = reviewerUserId,
+                UserDisplayName = reviewerName,
+                ActionType = AuditActionType.RegistrationRejected,
+                ResultStatus = AuditResultStatus.Success,
+                Description = $"Rejected registration for user '{user.Email}'. Remarks: {reviewRemarks.Trim()}",
+                EntityType = nameof(ApplicationUser),
+                EntityId = user.Id
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<PendingUserDto> GetRegistrationRequestAsync(string userId, CancellationToken cancellationToken = default)

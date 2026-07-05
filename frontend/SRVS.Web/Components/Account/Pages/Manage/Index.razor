@@ -41,7 +41,7 @@
                     <ValidationMessage For="() => ProfileInput.FullName" class="text-danger" />
                 </div>
                 <div class="col-md-6">
-                    <label for="institutionalId" class="form-label">ID Number</label>
+                    <label for="institutionalId" class="form-label">School ID</label>
                     <input id="institutionalId" class="form-control" value="@institutionalId" readonly />
                 </div>
                 <div class="col-md-6">
@@ -253,7 +253,7 @@
         UserRoleType.Admin => "System Administrator",
         UserRoleType.DepartmentHead => "Department Head",
         UserRoleType.Educator => "Faculty",
-        UserRoleType.Viewer => "Student Viewer",
+        UserRoleType.Student => "Student",
         _ => account.Role.ToString()
     };
 

@@ -15,7 +15,7 @@ public static class InstitutionalIdRules
         {
             UserRoleType.Admin => institutionalId.Length == 5,
             UserRoleType.DepartmentHead or UserRoleType.Educator => institutionalId.Length == 5,
-            UserRoleType.Viewer => institutionalId.Length == 10,
+            UserRoleType.Student => institutionalId.Length == 10,
             _ => false
         };
     }
