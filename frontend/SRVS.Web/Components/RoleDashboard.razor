@@ -342,11 +342,12 @@
             };
         }
 
-        var assigned = await dbContext.SyllabusAssignments.CountAsync(assignment => assignment.StudentId == currentUserId && assignment.IsActive);
-        var recentAssignments = await dbContext.SyllabusAssignments.CountAsync(assignment =>
-            assignment.StudentId == currentUserId &&
-            assignment.IsActive &&
-            assignment.AssignedAtDate >= DateTimeOffset.UtcNow.AddDays(-7));
+        var allAssignments = await dbContext.SyllabusAssignments
+            .Where(assignment => assignment.StudentId == currentUserId && assignment.IsActive)
+            .ToListAsync();
+        var assigned = allAssignments.Count;
+        var cutoffDate = DateTimeOffset.UtcNow.AddDays(-7);
+        var recentAssignments = allAssignments.Count(assignment => assignment.AssignedAtDate >= cutoffDate);
 
         return new[]
         {
@@ -357,12 +358,15 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadAdminPanelsAsync(ApplicationDbContext dbContext)
     {
-        var pendingRequests = await dbContext.Users
+        var pendingRequestsList = await dbContext.Users
             .AsNoTracking()
             .Where(request => request.AccountStatus == UserAccountStatus.PendingApproval)
+            .ToListAsync();
+
+        var pendingRequests = pendingRequestsList
             .OrderByDescending(request => request.CreatedAtUtc)
             .Take(5)
-            .ToListAsync();
+            .ToList();
 
         var primary = pendingRequests.Select(request => new DashboardPrimaryItem(
             request.FullName,
@@ -380,18 +384,24 @@
 
     private async Task<(IReadOnlyList<DashboardPrimaryItem>, IReadOnlyList<DashboardActivityItem>)> LoadDepartmentHeadPanelsAsync(ApplicationDbContext dbContext)
     {
-        var pendingReviews = await dbContext.SyllabusDocuments
+        var pendingReviewsList = await dbContext.SyllabusDocuments
             .AsNoTracking()
             .Where(document => document.Status == SyllabusStatus.Submitted)
-            .OrderByDescending(document => document.SubmittedAtUtc ?? document.UpdatedAtUtc)
-            .Take(5)
             .ToListAsync();
 
-        var recentDocs = await dbContext.SyllabusDocuments
+        var pendingReviews = pendingReviewsList
+            .OrderByDescending(document => document.SubmittedAtUtc ?? document.UpdatedAtUtc)
+            .Take(5)
+            .ToList();
+
+        var recentDocsList = await dbContext.SyllabusDocuments
             .AsNoTracking()
+            .ToListAsync();
+
+        var recentDocs = recentDocsList
             .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
             .Take(5)
-            .ToListAsync();
+            .ToList();
 
         var primary = pendingReviews.Select(document => new DashboardPrimaryItem(
             document.CourseCode,
@@ -453,11 +463,14 @@
             .Distinct()
             .ToListAsync();
 
-        return await dbContext.SyllabusDocuments
+        var documents = await dbContext.SyllabusDocuments
             .AsNoTracking()
             .Where(document => document.OwnerUserId == currentUserId || uploadedDocumentIds.Contains(document.Id))
-            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
             .ToListAsync();
+
+        return documents
+            .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
+            .ToList();
     }
 
 
@@ -468,7 +481,7 @@
             return ([], []);
         }
 
-        var assignedData = await dbContext.SyllabusAssignments
+        var assignedDataList = await dbContext.SyllabusAssignments
             .AsNoTracking()
             .Where(assignment => assignment.StudentId == currentUserId && assignment.IsActive)
             .Join(
@@ -476,9 +489,12 @@
                 assignment => assignment.SyllabusDocId,
                 document => document.Id,
                 (assignment, document) => new { Assignment = assignment, Document = document })
+            .ToListAsync();
+
+        var assignedData = assignedDataList
             .OrderByDescending(item => item.Assignment.AssignedAtDate)
             .Take(5)
-            .ToListAsync();
+            .ToList();
 
         var primary = assignedData.Select(item => item.Document).Select(document => new DashboardPrimaryItem(
             document.CourseCode,

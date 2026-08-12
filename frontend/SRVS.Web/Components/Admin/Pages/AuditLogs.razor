@@ -188,10 +188,9 @@
             query = query.Where(item => item.ResultStatus == filter.ResultStatus.Value);
         }
 
-        query = query.OrderByDescending(item => item.CreatedAtUtc);
-
-        var totalCount = await query.CountAsync();
-        logs = await query.Take(currentCount).ToListAsync();
+        var allLogs = await query.ToListAsync();
+        var totalCount = allLogs.Count;
+        logs = allLogs.OrderByDescending(item => item.CreatedAtUtc).Take(currentCount).ToList();
         hasMoreLogs = totalCount > logs.Count;
     }
 

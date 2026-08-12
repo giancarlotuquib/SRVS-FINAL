@@ -134,7 +134,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, x => x.MigrationsHistoryTable("__EFMigrationsHistory", "identity"));
+    options.UseNpgsql(connectionString);
     if (builder.Environment.IsDevelopment())
     {
         options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
@@ -187,81 +187,6 @@ var app = builder.Build();
 
 await SeedSrvsDataAsync(app);
 
-// Ensure syllabus_assignments table exists (migration was recorded but table not created)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await db.Database.ExecuteSqlRawAsync(@"
-        CREATE TABLE IF NOT EXISTS syllabus_assignments (
-            ""Id"" uuid NOT NULL,
-            ""StudentId"" text NOT NULL,
-            ""StudentFullName"" text NOT NULL DEFAULT '',
-            ""SyllabusId"" text NOT NULL DEFAULT '',
-            ""SyllabusDocId"" uuid NOT NULL,
-            ""AssignedBy"" text NOT NULL,
-            ""AssignedAt"" text NOT NULL DEFAULT '',
-            ""AssignedAtDate"" timestamp with time zone NOT NULL DEFAULT now(),
-            ""IsActive"" boolean NOT NULL,
-            ""DeletedAt"" timestamp with time zone,
-            ""CreatedAtUtc"" timestamp with time zone NOT NULL,
-            ""UpdatedAtUtc"" timestamp with time zone,
-            CONSTRAINT ""PK_syllabus_assignments"" PRIMARY KEY (""Id"")
-        );
-        ALTER TABLE syllabus_assignments ADD COLUMN IF NOT EXISTS ""StudentFullName"" text NOT NULL DEFAULT '';
-        ALTER TABLE syllabus_assignments ADD COLUMN IF NOT EXISTS ""SyllabusDocId"" uuid NULL;
-
-        -- Backfill SyllabusDocId from SyllabusId if it was previously uuid
-        UPDATE syllabus_assignments sa
-        SET ""SyllabusDocId"" = sa.""SyllabusId""::uuid
-        WHERE sa.""SyllabusDocId"" IS NULL AND sa.""SyllabusId"" IS NOT NULL AND sa.""SyllabusId""::text <> '';
-
-        -- Ensure SyllabusDocId is NOT NULL
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""SyllabusDocId"" SET NOT NULL;
-
-        -- Alter SyllabusId to text if it was uuid
-        DROP INDEX IF EXISTS ""IX_syllabus_assignments_SyllabusId"";
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""SyllabusId"" TYPE text USING ""SyllabusId""::text;
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""SyllabusId"" SET DEFAULT '';
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""SyllabusId"" SET NOT NULL;
-
-        -- Add AssignedAtDate column if not exists
-        ALTER TABLE syllabus_assignments ADD COLUMN IF NOT EXISTS ""AssignedAtDate"" timestamp with time zone NULL;
-
-        -- Backfill AssignedAtDate from AssignedAt
-        UPDATE syllabus_assignments sa
-        SET ""AssignedAtDate"" = sa.""AssignedAt""::timestamp with time zone
-        WHERE sa.""AssignedAtDate"" IS NULL AND sa.""AssignedAt"" IS NOT NULL AND sa.""AssignedAt""::text NOT LIKE '%CPE%';
-
-        -- Set AssignedAtDate NOT NULL
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""AssignedAtDate"" SET DEFAULT now();
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""AssignedAtDate"" SET NOT NULL;
-
-        -- Alter AssignedAt to text
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""AssignedAt"" TYPE text USING ""AssignedAt""::text;
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""AssignedAt"" SET DEFAULT '';
-        ALTER TABLE syllabus_assignments ALTER COLUMN ""AssignedAt"" SET NOT NULL;
-
-        -- Backfill course codes into AssignedAt from syllabi table
-        UPDATE syllabus_assignments sa
-        SET ""AssignedAt"" = s.""CourseCode""
-        FROM syllabi s
-        WHERE sa.""SyllabusDocId"" = s.""Id"" AND (sa.""AssignedAt"" = '' OR sa.""AssignedAt"" LIKE '%00:%' OR sa.""AssignedAt"" LIKE '%2026%');
-
-        -- Backfill 5-digit short SyllabusId based on SyllabusDocId hash code
-        UPDATE syllabus_assignments sa
-        SET ""SyllabusId"" = LPAD((ABS(hashtext(sa.""SyllabusDocId""::text)) % 100000)::text, 5, '0')
-        WHERE sa.""SyllabusId"" = '' OR LENGTH(sa.""SyllabusId"") > 10;
-
-        CREATE INDEX IF NOT EXISTS ""IX_syllabus_assignments_StudentId_IsActive"" ON syllabus_assignments (""StudentId"", ""IsActive"");
-        CREATE INDEX IF NOT EXISTS ""IX_syllabus_assignments_SyllabusDocId"" ON syllabus_assignments (""SyllabusDocId"");
-
-        -- Sync student names from users table where sa.StudentFullName is empty
-        UPDATE syllabus_assignments sa
-        SET ""StudentFullName"" = u.""FullName""
-        FROM users u
-        WHERE sa.""StudentId"" = u.""Id"" AND sa.""StudentFullName"" = '';
-    ");
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -339,30 +264,12 @@ static async Task SeedSrvsDataAsync(WebApplication app)
 
     try
     {
-        var connStr = app.Configuration.GetConnectionString("DefaultConnection");
-        using var conn = new Npgsql.NpgsqlConnection(connStr);
-        await conn.OpenAsync();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            DO $$
-            BEGIN
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'AspNetUserPasskeys') THEN
-                    ALTER TABLE public.""AspNetUserPasskeys"" SET SCHEMA identity;
-                END IF;
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '__EFMigrationsHistory') THEN
-                    ALTER TABLE public.""__EFMigrationsHistory"" SET SCHEMA identity;
-                END IF;
-            END
-            $$;
-        ";
-        await cmd.ExecuteNonQueryAsync();
+        await dbContext.Database.EnsureCreatedAsync();
     }
-    catch (Exception ex)
+    catch
     {
-        Console.WriteLine($"Error moving tables to identity schema: {ex}");
+        // Ignore if schema already created manually
     }
-
-    await dbContext.Database.MigrateAsync();
 
     // DIAGNOSTIC DUMP
     try

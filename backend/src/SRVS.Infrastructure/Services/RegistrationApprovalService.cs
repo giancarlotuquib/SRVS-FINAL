@@ -34,15 +34,11 @@ public class RegistrationApprovalService(
         }
         else if (callerRole == UserRoleType.Admin)
         {
-            // Admin can approve DepartmentHead, Faculty (Educator) and Student registrations
-            query = query.Where(u => u.Role == UserRoleType.DepartmentHead
-                                     || u.Role == UserRoleType.Student
-                                     || u.Role == UserRoleType.Educator);
+            // Admin can approve any registrations, so no filter is applied
         }
 
-        var pendingList = await query
+        var pendingListRaw = await query
             .Where(u => u.AccountStatus == UserAccountStatus.PendingApproval)
-            .OrderByDescending(u => u.CreatedAtUtc)
             .Select(u => new PendingUserDto
             {
                 Id = u.Id,
@@ -54,6 +50,8 @@ public class RegistrationApprovalService(
                 CreatedAtUtc = u.CreatedAtUtc
             })
             .ToListAsync(cancellationToken);
+            
+        var pendingList = pendingListRaw.OrderByDescending(u => u.CreatedAtUtc).ToList();
 
         var pendingCount = await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.PendingApproval, cancellationToken);
         var approvedCount = await dbContext.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Active, cancellationToken);

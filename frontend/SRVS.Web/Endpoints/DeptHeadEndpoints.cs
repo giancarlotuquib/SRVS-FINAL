@@ -61,8 +61,7 @@ public static class DeptHeadEndpoints
                 query = query.Where(s => s.Status == stat);
             }
 
-            var syllabi = await query
-                .OrderByDescending(s => s.SubmittedAtUtc ?? s.UpdatedAtUtc)
+            var syllabiList = await query
                 .Select(s => new SyllabusListResponse
                 {
                     Id = s.Id,
@@ -75,6 +74,8 @@ public static class DeptHeadEndpoints
                     Status = s.Status
                 })
                 .ToListAsync();
+
+            var syllabi = syllabiList.OrderByDescending(s => s.UploadedAt).ToList();
 
             return Results.Ok(syllabi);
         })
@@ -91,9 +92,8 @@ public static class DeptHeadEndpoints
                 .Select(s => new { s.Id, s.CourseCode, s.Status, s.OwnerUserId })
                 .ToListAsync();
 
-            var pendingSyllabi = await dbContext.SyllabusDocuments
+            var pendingSyllabiList = await dbContext.SyllabusDocuments
                 .Where(s => s.Status == SRVS.Domain.Enums.SyllabusStatus.Submitted && !string.IsNullOrEmpty(s.OwnerUserId))
-                .OrderByDescending(s => s.SubmittedAtUtc ?? s.UpdatedAtUtc)
                 .Select(s => new SyllabusPendingResponse
                 {
                     Id = s.Id,
@@ -107,6 +107,8 @@ public static class DeptHeadEndpoints
                     SubmittedAtUtc = s.SubmittedAtUtc
                 })
                 .ToListAsync();
+
+            var pendingSyllabi = pendingSyllabiList.OrderByDescending(s => s.SubmittedAtUtc).ToList();
 
             return Results.Ok(new { 
                 TotalSyllabiInSystem = allSyllabi.Count,

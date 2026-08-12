@@ -33,11 +33,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 		modelBuilder.Entity<SyllabusAssignment>().ToTable("syllabus_assignments");
 		modelBuilder.Entity<AuditLogEntry>().ToTable("audit_logs");
 
-		// ── Remove hashed / normalized Identity columns ─────────────
+		// ── Remove hashed / normalized / unused Identity columns ─────
 		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.SecurityStamp);
 		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.ConcurrencyStamp);
 		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.NormalizedUserName);
 		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.NormalizedEmail);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.AccessFailedCount);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.EmailConfirmed);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.PhoneNumber);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.PhoneNumberConfirmed);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.TwoFactorEnabled);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.LockoutEnd);
+		modelBuilder.Entity<ApplicationUser>().Ignore(u => u.LockoutEnabled);
+
+		modelBuilder.Entity<SyllabusAssignment>().Ignore(a => a.SyllabusId);
+		modelBuilder.Entity<SyllabusAssignment>().Ignore(a => a.AssignedAt);
 
 		modelBuilder.Entity<IdentityRole>().Ignore(r => r.ConcurrencyStamp);
 		modelBuilder.Entity<IdentityRole>().Ignore(r => r.NormalizedName);

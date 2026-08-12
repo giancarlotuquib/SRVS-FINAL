@@ -223,10 +223,9 @@
                 .OrderBy(student => student.FullName)
                 .ToListAsync();
 
-            Syllabi = await dbContext.SyllabusDocuments
+            var SyllabiList = await dbContext.SyllabusDocuments
                 .AsNoTracking()
                 .Where(syllabus => syllabus.Status == SyllabusStatus.Approved || syllabus.Status == SyllabusStatus.Submitted)
-                .OrderByDescending(syllabus => syllabus.SubmittedAtUtc ?? syllabus.UpdatedAtUtc ?? syllabus.CreatedAtUtc)
                 .Select(syllabus => new SyllabusListResponse
                 {
                     Id = syllabus.Id,
@@ -238,10 +237,12 @@
                         .FirstOrDefault() ?? syllabus.InstructorName,
                     AcademicYear = syllabus.AcademicYear,
                     Semester = syllabus.Semester,
-                    UploadedAt = syllabus.SubmittedAtUtc ?? syllabus.CreatedAtUtc,
+                    UploadedAt = syllabus.SubmittedAtUtc ?? syllabus.UpdatedAtUtc ?? syllabus.CreatedAtUtc,
                     Status = syllabus.Status
                 })
                 .ToListAsync();
+            
+            Syllabi = SyllabiList.OrderByDescending(s => s.UploadedAt).ToList();
 
             SelectedStudentIds.RemoveWhere(id => Students.All(student => student.Id != id));
         }

@@ -12,7 +12,7 @@
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore.Design": "10.0.6",
           "Microsoft.EntityFrameworkCore.Sqlite": "10.0.6",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.2",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.3",
           "SRVS.Application": "1.0.0",
           "SRVS.Infrastructure": "1.0.0",
           "Swashbuckle.AspNetCore": "6.6.2"
@@ -464,7 +464,7 @@
           }
         }
       },
-      "Npgsql.EntityFrameworkCore.PostgreSQL/10.0.2": {
+      "Npgsql.EntityFrameworkCore.PostgreSQL/10.0.3": {
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore.Relational": "10.0.6",
@@ -472,8 +472,8 @@
         },
         "runtime": {
           "lib/net10.0/Npgsql.EntityFrameworkCore.PostgreSQL.dll": {
-            "assemblyVersion": "10.0.2.0",
-            "fileVersion": "10.0.2.0"
+            "assemblyVersion": "10.0.3.0",
+            "fileVersion": "10.0.3.0"
           }
         }
       },
@@ -756,7 +756,7 @@
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore": "10.0.6",
           "Microsoft.EntityFrameworkCore.Relational": "10.0.6",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.2",
+          "Microsoft.EntityFrameworkCore.Sqlite": "10.0.6",
           "SRVS.Application": "1.0.0",
           "SRVS.Domain": "1.0.0"
         },
@@ -929,12 +929,12 @@
       "path": "npgsql/10.0.3",
       "hashPath": "npgsql.10.0.3.nupkg.sha512"
     },
-    "Npgsql.EntityFrameworkCore.PostgreSQL/10.0.2": {
+    "Npgsql.EntityFrameworkCore.PostgreSQL/10.0.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-PsNYgPOSW41Xx19gin7y4EdZAPteWr9Cb01XkdObxOsPzi+mgBupBEN7J7+erXFsROPOILM7MlIoO9QzL8+LGQ==",
-      "path": "npgsql.entityframeworkcore.postgresql/10.0.2",
-      "hashPath": "npgsql.entityframeworkcore.postgresql.10.0.2.nupkg.sha512"
+      "sha512": "sha512-IPGrrZnRkuW7OlHDhUESZz4G5DLkW7Nej/O3Cx+0iTsgyU5XJxBgpsvTHLloo3WWuAKKbDHXBvWPVkX1deRh1Q==",
+      "path": "npgsql.entityframeworkcore.postgresql/10.0.3",
+      "hashPath": "npgsql.entityframeworkcore.postgresql.10.0.3.nupkg.sha512"
     },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
       "type": "package",
