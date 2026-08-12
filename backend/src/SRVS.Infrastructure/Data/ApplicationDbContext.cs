@@ -71,5 +71,53 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 		modelBuilder.Entity<SyllabusDocument>().HasIndex(s => s.Status);
 		modelBuilder.Entity<SyllabusAssignment>().HasIndex(a => new { a.StudentId, a.IsActive });
 		modelBuilder.Entity<SyllabusAssignment>().HasIndex(a => a.SyllabusDocId);
+
+		// ── Foreign Keys ────────────────────────────────────────────
+		
+		// SyllabusAssignment relationships
+		modelBuilder.Entity<SyllabusAssignment>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(a => a.StudentId)
+			.OnDelete(DeleteBehavior.Cascade);
+			
+		modelBuilder.Entity<SyllabusAssignment>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(a => a.AssignedBy)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		modelBuilder.Entity<SyllabusAssignment>()
+			.HasOne<SyllabusDocument>()
+			.WithMany()
+			.HasForeignKey(a => a.SyllabusDocId)
+			.OnDelete(DeleteBehavior.Cascade);
+
+		// SyllabusDocument relationships
+		modelBuilder.Entity<SyllabusDocument>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(s => s.OwnerUserId)
+			.OnDelete(DeleteBehavior.Cascade);
+
+		modelBuilder.Entity<SyllabusDocument>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(s => s.ReviewedByUserId)
+			.OnDelete(DeleteBehavior.SetNull);
+
+		// SyllabusVersion relationships
+		modelBuilder.Entity<SyllabusVersion>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(v => v.UploadedByUserId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		// AuditLogEntry relationships
+		modelBuilder.Entity<AuditLogEntry>()
+			.HasOne<ApplicationUser>()
+			.WithMany()
+			.HasForeignKey(a => a.UserId)
+			.OnDelete(DeleteBehavior.SetNull);
 	}
 }
