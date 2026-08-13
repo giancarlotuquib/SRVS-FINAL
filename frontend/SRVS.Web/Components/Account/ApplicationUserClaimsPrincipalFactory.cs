@@ -60,11 +60,17 @@ internal sealed class ApplicationUserClaimsPrincipalFactory : IUserClaimsPrincip
             identity.AddClaim(new Claim(stampClaimType, user.SecurityStamp));
         }
 
-        // Add any custom claims stored in Identity
-        var existingUserClaims = await _userManager.GetClaimsAsync(user);
-        foreach (var c in existingUserClaims)
+        try
         {
-            identity.AddClaim(c);
+            var existingUserClaims = await _userManager.GetClaimsAsync(user);
+            foreach (var c in existingUserClaims)
+            {
+                identity.AddClaim(c);
+            }
+        }
+        catch
+        {
+            // Ignore if identity.user_claims table is not created
         }
 
         return new ClaimsPrincipal(identity);

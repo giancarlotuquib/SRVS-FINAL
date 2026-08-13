@@ -1,0 +1,5 @@
+Id: 54321 | UserName: john@edu.ph | Email: john@edu.ph | FullName: John Doe | Role: Educator | Status: Active
+Id: 11111 | UserName: test@edu.ph | Email: test@edu.ph | FullName: Testing Test | Role: Educator | Status: Active
+Id: 2022012708 | UserName: student@edu.ph | Email: student@edu.ph | FullName: student stud | Role: Student | Status: Active
+Id: 12345 | UserName: gian@edu.ph | Email: gian@edu.ph | FullName: Gian Tuquib | Role: DepartmentHead | Status: Active
+Id: 00000 | UserName: admin@srvs.local | Email: admin@srvs.local | FullName: System Administrator | Role: Admin | Status: Active
