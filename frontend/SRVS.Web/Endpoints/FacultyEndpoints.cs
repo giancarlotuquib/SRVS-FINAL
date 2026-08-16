@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SRVS.Domain.Entities;
 using SRVS.Domain.Enums;
 using SRVS.Web.Data;
+using SRVS.Web.DTOs;
 
 namespace SRVS.Web.Endpoints;
 
@@ -14,6 +15,7 @@ public static class FacultyEndpoints
     {
         var facultyGroup = app.MapGroup("/api/faculty").WithTags("Faculty").RequireAuthorization();
 
+        // 1. Get all syllabi owned by logged-in faculty
         facultyGroup.MapGet("/syllabi", async (HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
@@ -21,62 +23,220 @@ public static class FacultyEndpoints
             if (user.Role != UserRoleType.Educator) return Results.Forbid();
 
             var syllabi = await dbContext.SyllabusDocuments
-                .Where(s => s.OwnerUserId == user.Id)
-                .Select(s => new { s.Id, s.CourseCode, s.CourseTitle, s.AcademicYear, s.Semester, s.CurrentVersionNumber, s.SubmittedAtUtc, s.Status })
+                .Where(s => s.OwnerUserId == user.Id && s.DepartmentName == user.DepartmentName)
+                .OrderByDescending(s => s.UpdatedAtUtc ?? s.CreatedAtUtc)
+                .Select(s => new SyllabusDetailResponse
+                {
+                    Id = s.Id,
+                    CourseCode = s.CourseCode,
+                    CourseTitle = s.CourseTitle,
+                    AcademicYear = s.AcademicYear,
+                    Semester = s.Semester,
+                    DepartmentName = s.DepartmentName,
+                    InstructorId = s.InstructorId,
+                    CurrentVersionNumber = s.CurrentVersionNumber,
+                    Status = s.Status,
+                    CurrentFileName = s.CurrentFileName,
+                    ReviewerRemarks = s.ReviewerRemarks,
+                    SubmittedAtUtc = s.SubmittedAtUtc,
+                    CreatedAtUtc = s.CreatedAtUtc
+                })
                 .ToListAsync();
 
             return Results.Ok(syllabi);
-        });
+        })
+        .Produces<List<SyllabusDetailResponse>>(StatusCodes.Status200OK)
+        .WithName("GetFacultySyllabi");
 
-        facultyGroup.MapPost("/syllabi", async (HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        // 2. Create new syllabus draft
+        facultyGroup.MapPost("/syllabi", async (CreateSyllabusRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Educator) return Results.Forbid();
 
-            // Placeholder for syllabus creation
-            return Results.Ok(new { message = "Syllabus creation endpoint (placeholder)." });
-        });
+            var doc = new SyllabusDocument
+            {
+                CourseCode = request.CourseCode.Trim(),
+                CourseTitle = request.CourseTitle.Trim(),
+                AcademicYear = request.AcademicYear.Trim(),
+                Semester = request.Semester.Trim(),
+                DepartmentName = user.DepartmentName,
+                InstructorId = string.IsNullOrWhiteSpace(request.InstructorId) ? user.Id : request.InstructorId.Trim(),
+                OwnerUserId = user.Id,
+                Status = SyllabusStatus.Draft,
+                CurrentVersionNumber = 1,
+                CurrentFileName = request.FileName ?? $"{request.CourseCode.Trim()}_Syllabus.pdf",
+                CurrentStoragePath = $"syllabi/{Guid.NewGuid()}_{request.FileName ?? "document.pdf"}",
+                IsPublished = false
+            };
 
+            dbContext.SyllabusDocuments.Add(doc);
+            await dbContext.SaveChangesAsync();
+
+            var response = new SyllabusDetailResponse
+            {
+                Id = doc.Id,
+                CourseCode = doc.CourseCode,
+                CourseTitle = doc.CourseTitle,
+                AcademicYear = doc.AcademicYear,
+                Semester = doc.Semester,
+                DepartmentName = doc.DepartmentName,
+                InstructorId = doc.InstructorId,
+                CurrentVersionNumber = doc.CurrentVersionNumber,
+                Status = doc.Status,
+                CurrentFileName = doc.CurrentFileName,
+                ReviewerRemarks = doc.ReviewerRemarks,
+                SubmittedAtUtc = doc.SubmittedAtUtc,
+                CreatedAtUtc = doc.CreatedAtUtc
+            };
+
+            return Results.Created($"/api/faculty/syllabi/{doc.Id}", response);
+        })
+        .Produces<SyllabusDetailResponse>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status400BadRequest)
+        .WithName("CreateSyllabus");
+
+        // 3. Get single syllabus details by ID
         facultyGroup.MapGet("/syllabi/{id:guid}", async (Guid id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Educator) return Results.Forbid();
 
-            var syllabus = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(s => s.Id == id && s.OwnerUserId == user.Id);
-            if (syllabus is null) return Results.NotFound();
+            var s = await dbContext.SyllabusDocuments
+                .FirstOrDefaultAsync(doc => doc.Id == id && doc.OwnerUserId == user.Id);
 
-            return Results.Ok(new { syllabus.Id, syllabus.CourseCode, syllabus.CourseTitle, syllabus.AcademicYear, syllabus.Semester, syllabus.CurrentVersionNumber, syllabus.Status });
-        });
+            if (s is null) return Results.NotFound(new { error = "Syllabus not found." });
 
-        facultyGroup.MapPut("/syllabi/{id:guid}", async (Guid id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+            return Results.Ok(new SyllabusDetailResponse
+            {
+                Id = s.Id,
+                CourseCode = s.CourseCode,
+                CourseTitle = s.CourseTitle,
+                AcademicYear = s.AcademicYear,
+                Semester = s.Semester,
+                DepartmentName = s.DepartmentName,
+                InstructorId = s.InstructorId,
+                CurrentVersionNumber = s.CurrentVersionNumber,
+                Status = s.Status,
+                CurrentFileName = s.CurrentFileName,
+                ReviewerRemarks = s.ReviewerRemarks,
+                SubmittedAtUtc = s.SubmittedAtUtc,
+                CreatedAtUtc = s.CreatedAtUtc
+            });
+        })
+        .Produces<SyllabusDetailResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .WithName("GetFacultySyllabusById");
+
+        // 4. Update syllabus details (Draft / Rejected)
+        facultyGroup.MapPut("/syllabi/{id:guid}", async (Guid id, UpdateSyllabusRequest request, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Educator) return Results.Forbid();
 
-            var syllabus = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(s => s.Id == id && s.OwnerUserId == user.Id);
-            if (syllabus is null) return Results.NotFound();
+            var s = await dbContext.SyllabusDocuments
+                .FirstOrDefaultAsync(doc => doc.Id == id && doc.OwnerUserId == user.Id);
 
-            // Placeholder for syllabus update
-            return Results.Ok(new { message = "Syllabus update endpoint (placeholder)." });
-        });
+            if (s is null) return Results.NotFound(new { error = "Syllabus not found." });
 
+            if (!string.IsNullOrWhiteSpace(request.CourseCode)) s.CourseCode = request.CourseCode.Trim();
+            if (!string.IsNullOrWhiteSpace(request.CourseTitle)) s.CourseTitle = request.CourseTitle.Trim();
+            if (!string.IsNullOrWhiteSpace(request.AcademicYear)) s.AcademicYear = request.AcademicYear.Trim();
+            if (!string.IsNullOrWhiteSpace(request.Semester)) s.Semester = request.Semester.Trim();
+            if (!string.IsNullOrWhiteSpace(request.InstructorId)) s.InstructorId = request.InstructorId.Trim();
+            if (!string.IsNullOrWhiteSpace(request.FileName)) s.CurrentFileName = request.FileName.Trim();
+            if (!string.IsNullOrWhiteSpace(request.ChangeSummary)) s.LatestChangeSummary = request.ChangeSummary.Trim();
+
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync();
+
+            return Results.Ok(new SyllabusDetailResponse
+            {
+                Id = s.Id,
+                CourseCode = s.CourseCode,
+                CourseTitle = s.CourseTitle,
+                AcademicYear = s.AcademicYear,
+                Semester = s.Semester,
+                DepartmentName = s.DepartmentName,
+                InstructorId = s.InstructorId,
+                CurrentVersionNumber = s.CurrentVersionNumber,
+                Status = s.Status,
+                CurrentFileName = s.CurrentFileName,
+                ReviewerRemarks = s.ReviewerRemarks,
+                SubmittedAtUtc = s.SubmittedAtUtc,
+                CreatedAtUtc = s.CreatedAtUtc
+            });
+        })
+        .Produces<SyllabusDetailResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .WithName("UpdateFacultySyllabus");
+
+        // 5. Submit syllabus for Department Head review
+        facultyGroup.MapPost("/syllabi/{id:guid}/submit", async (Guid id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+            if (user is null) return Results.Unauthorized();
+            if (user.Role != UserRoleType.Educator) return Results.Forbid();
+
+            var s = await dbContext.SyllabusDocuments
+                .FirstOrDefaultAsync(doc => doc.Id == id && doc.OwnerUserId == user.Id);
+
+            if (s is null) return Results.NotFound(new { error = "Syllabus not found." });
+
+            s.Status = SyllabusStatus.Submitted;
+            s.SubmittedAtUtc = DateTimeOffset.UtcNow;
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            await dbContext.SaveChangesAsync();
+
+            return Results.Ok(new SyllabusDetailResponse
+            {
+                Id = s.Id,
+                CourseCode = s.CourseCode,
+                CourseTitle = s.CourseTitle,
+                AcademicYear = s.AcademicYear,
+                Semester = s.Semester,
+                DepartmentName = s.DepartmentName,
+                InstructorId = s.InstructorId,
+                CurrentVersionNumber = s.CurrentVersionNumber,
+                Status = s.Status,
+                CurrentFileName = s.CurrentFileName,
+                ReviewerRemarks = s.ReviewerRemarks,
+                SubmittedAtUtc = s.SubmittedAtUtc,
+                CreatedAtUtc = s.CreatedAtUtc
+            });
+        })
+        .Produces<SyllabusDetailResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .WithName("SubmitSyllabusForReview");
+
+        // 6. Delete draft syllabus
         facultyGroup.MapDelete("/syllabi/{id:guid}", async (Guid id, HttpContext httpContext, ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
             if (user.Role != UserRoleType.Educator) return Results.Forbid();
 
-            var syllabus = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(s => s.Id == id && s.OwnerUserId == user.Id);
-            if (syllabus is null) return Results.NotFound();
+            var s = await dbContext.SyllabusDocuments
+                .FirstOrDefaultAsync(doc => doc.Id == id && doc.OwnerUserId == user.Id);
 
-            // Placeholder for syllabus deletion
-            return Results.Ok(new { message = "Syllabus deletion endpoint (placeholder)." });
-        });
+            if (s is null) return Results.NotFound(new { error = "Syllabus not found." });
+
+            if (s.Status == SyllabusStatus.Approved)
+            {
+                return Results.BadRequest(new { error = "Approved syllabi cannot be deleted." });
+            }
+
+            dbContext.SyllabusDocuments.Remove(s);
+            await dbContext.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Syllabus deleted successfully." });
+        })
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .WithName("DeleteFacultySyllabus");
     }
 }

@@ -1,5 +1,9 @@
-Id: 54321 | UserName: john@edu.ph | Email: john@edu.ph | FullName: John Doe | Role: Educator | Status: Active
-Id: 11111 | UserName: test@edu.ph | Email: test@edu.ph | FullName: Testing Test | Role: Educator | Status: Active
-Id: 2022012708 | UserName: student@edu.ph | Email: student@edu.ph | FullName: student stud | Role: Student | Status: Active
-Id: 12345 | UserName: gian@edu.ph | Email: gian@edu.ph | FullName: Gian Tuquib | Role: DepartmentHead | Status: Active
-Id: 00000 | UserName: admin@srvs.local | Email: admin@srvs.local | FullName: System Administrator | Role: Admin | Status: Active
+Id: 11111 | UserName: tuquib@edu.ph | Email: tuquib@edu.ph | FullName: Tuquib Carlo | Role: DepartmentHead | Status: Active
+Id: 33333 | UserName: john@edu.ph | Email: john@edu.ph | FullName: John Doe | Role: DepartmentHead | Status: Active
+Id: 44444 | UserName: lebron@edu.ph | Email: lebron@edu.ph | FullName: Lebron James | Role: DepartmentHead | Status: Active
+Id: 0 | UserName: admin@srvs.local | Email: admin@srvs.local | FullName: System Administrator | Role: Admin | Status: Active
+Id: 2022012708 | UserName: ralph@edu.ph | Email: ralph@edu.ph | FullName: ralph lima | Role: Student | Status: Active
+Id: 12345 | UserName: gian@edu.ph | Email: gian@edu.ph | FullName: Gian Carlo | Role: DepartmentHead | Status: Active
+Id: 55555 | UserName: test@edu.ph | Email: test@edu.ph | FullName: Testing test | Role: Educator | Status: Active
+Id: 54321 | UserName: carlo@edu.ph | Email: carlo@edu.ph | FullName: Carlo Gian | Role: DepartmentHead | Status: Active
+Id: 22222 | UserName: steph@edu.ph | Email: steph@edu.ph | FullName: Stephen Curry | Role: DepartmentHead | Status: Active

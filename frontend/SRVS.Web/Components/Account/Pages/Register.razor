@@ -69,8 +69,20 @@
                             <ValidationMessage For="() => RegisterInput.SchoolId" class="text-danger small" />
                         </div>
                         <div class="mb-3">
+                            <label class="form-label text-secondary fw-semibold" for="RegisterInput.DepartmentName">Engineering Department</label>
+                            <InputSelect id="RegisterInput.DepartmentName" class="form-select" @bind-Value="RegisterInput.DepartmentName">
+                                <option value="">-- Select Department --</option>
+                                @foreach (var dept in SRVS.Domain.Constants.EngineeringDepartments.All)
+                                {
+                                    <option value="@dept">@dept</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="() => RegisterInput.DepartmentName" class="text-danger small" />
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label text-secondary fw-semibold" for="RegisterInput.Role">Role</label>
                             <InputSelect id="RegisterInput.Role" class="form-select" @bind-Value="RegisterInput.Role">
+                                <option value="">-- Select Role --</option>
                                 <option value="@UserRoleType.DepartmentHead">Department Head</option>
                                 <option value="@UserRoleType.Educator">Faculty</option>
                                 <option value="@UserRoleType.Student">Student</option>
@@ -127,10 +139,7 @@
 
     protected override void OnInitialized()
     {
-        RegisterInput ??= new RegisterRequest
-        {
-            Role = UserRoleType.DepartmentHead
-        };
+        RegisterInput ??= new RegisterRequest();
     }
 
     private async Task RegisterUser()
@@ -142,15 +151,21 @@
         {
             RegisterInput.SchoolId = RegisterInput.SchoolId?.Trim() ?? string.Empty;
 
-            if (RegisterInput.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
+            if (string.IsNullOrWhiteSpace(RegisterInput.DepartmentName))
+            {
+                errorMessage = "Please select an Engineering Department.";
+                return;
+            }
+
+            if (!RegisterInput.Role.HasValue || RegisterInput.Role.Value is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
             {
                 errorMessage = "Please select a valid role.";
                 return;
             }
 
-            if (!InstitutionalIdRules.IsValid(RegisterInput.Role, RegisterInput.SchoolId))
+            if (!InstitutionalIdRules.IsValid(RegisterInput.Role.Value, RegisterInput.SchoolId))
             {
-                errorMessage = GetSchoolIdValidationMessage(RegisterInput.Role);
+                errorMessage = GetSchoolIdValidationMessage(RegisterInput.Role.Value);
                 return;
             }
 

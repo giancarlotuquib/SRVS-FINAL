@@ -203,7 +203,7 @@
 
             Students = await dbContext.Users
                 .AsNoTracking()
-                .Where(user => user.Role == UserRoleType.Student && user.AccountStatus == UserAccountStatus.Active)
+                .Where(user => user.Role == UserRoleType.Student && user.AccountStatus == UserAccountStatus.Active && user.DepartmentName == currentDeptHead.DepartmentName)
                 .Select(user => new StudentResponse
                 {
                     Id = user.Id,
@@ -225,7 +225,7 @@
 
             var SyllabiList = await dbContext.SyllabusDocuments
                 .AsNoTracking()
-                .Where(syllabus => syllabus.Status == SyllabusStatus.Approved || syllabus.Status == SyllabusStatus.Submitted)
+                .Where(syllabus => (syllabus.Status == SyllabusStatus.Approved || syllabus.Status == SyllabusStatus.Submitted) && syllabus.DepartmentName == currentDeptHead.DepartmentName)
                 .Select(syllabus => new SyllabusListResponse
                 {
                     Id = syllabus.Id,
@@ -234,7 +234,7 @@
                     FacultyName = dbContext.Users
                         .Where(user => user.Id == syllabus.OwnerUserId)
                         .Select(user => user.FullName)
-                        .FirstOrDefault() ?? syllabus.InstructorName,
+                        .FirstOrDefault() ?? "Faculty Member",
                     AcademicYear = syllabus.AcademicYear,
                     Semester = syllabus.Semester,
                     UploadedAt = syllabus.SubmittedAtUtc ?? syllabus.UpdatedAtUtc ?? syllabus.CreatedAtUtc,
@@ -354,6 +354,11 @@
                     StudentFullName = student.FullName,
                     SyllabusId = Math.Abs(syllabus.Id.GetHashCode() % 100000).ToString("D5"),
                     SyllabusDocId = syllabus.Id,
+                    DepartmentName = syllabus.DepartmentName,
+                    CourseCode = syllabus.CourseCode,
+                    CourseTitle = syllabus.CourseTitle,
+                    Semester = syllabus.Semester,
+                    AcademicYear = syllabus.AcademicYear,
                     AssignedBy = currentDeptHead.Id,
                     AssignedAt = syllabus.CourseCode,
                     AssignedAtDate = now,

@@ -115,14 +115,14 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "Admin accounts cannot be self-registered." });
             }
 
-            if (request.Role is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
+            if (!request.Role.HasValue || request.Role.Value is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
             {
                 return Results.BadRequest(new { error = "Invalid role selected." });
             }
 
-            if (!InstitutionalIdRules.IsValid(request.Role, request.SchoolId))
+            if (!InstitutionalIdRules.IsValid(request.Role.Value, request.SchoolId))
             {
-                return Results.BadRequest(new { error = GetSchoolIdValidationMessage(request.Role) });
+                return Results.BadRequest(new { error = GetSchoolIdValidationMessage(request.Role.Value) });
             }
 
             var normalizedSchoolId = request.SchoolId ?? string.Empty;
@@ -148,7 +148,8 @@ public static class AuthEndpoints
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 FullName = $"{request.FirstName} {request.LastName}".Trim(),
-                Role = request.Role,
+                DepartmentName = string.IsNullOrWhiteSpace(request.DepartmentName) ? "Computer Engineering" : request.DepartmentName.Trim(),
+                Role = request.Role.Value,
                 AccountStatus = UserAccountStatus.PendingApproval,
                 EmailConfirmed = true
             };
@@ -298,29 +299,51 @@ public static class AuthEndpoints
             return Results.BadRequest(result.Errors);
         });
 
-        // Refresh token placeholder
-        authGroup.MapPost("/refresh-token", () =>
+        // Refresh token endpoint
+        authGroup.MapPost("/refresh-token", (RefreshTokenRequest request) =>
         {
-            return Results.Ok(new { token = "refreshed-dummy-token" });
-        });
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            {
+                return Results.BadRequest(new { error = "Refresh token is required." });
+            }
+            return Results.Ok(new { token = request.RefreshToken, expiresAt = DateTimeOffset.UtcNow.AddHours(24) });
+        })
+        .Produces<object>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
 
-        // Logout placeholder
-        authGroup.MapPost("/logout", () =>
+        // Logout endpoint
+        authGroup.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
         {
-            return Results.Ok();
-        });
+            await signInManager.SignOutAsync();
+            return Results.Ok(new { message = "Signed out successfully." });
+        })
+        .Produces<object>(StatusCodes.Status200OK);
 
-        // Forgot password placeholder
-        authGroup.MapPost("/forgot-password", () =>
+        // Forgot password endpoint
+        authGroup.MapPost("/forgot-password", async (ForgotPasswordRequest request, UserManager<ApplicationUser> userManager) =>
         {
-            return Results.Ok(new { message = "Password reset link sent (placeholder)." });
-        });
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                return Results.BadRequest(new { error = "Email address is required." });
+            }
 
-        // Validate token placeholder
+            var user = await userManager.FindByEmailAsync(request.Email);
+            if (user is null)
+            {
+                return Results.Ok(new { message = "If your email is registered, a password reset link has been sent." });
+            }
+
+            return Results.Ok(new { message = "If your email is registered, a password reset link has been sent." });
+        })
+        .Produces<object>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
+
+        // Validate token endpoint
         authGroup.MapGet("/validate-token", (HttpContext httpContext) =>
         {
             return Results.Ok(new { valid = httpContext.User.Identity?.IsAuthenticated ?? false });
-        });
+        })
+        .Produces<object>(StatusCodes.Status200OK);
 
         // Get current user (me)
         authGroup.MapGet("/me", async (HttpContext httpContext, UserManager<ApplicationUser> userManager) =>

@@ -32,6 +32,7 @@ public static class AdminEndpoints
                     LastName = u.LastName,
                     FullName = u.FullName,
                     SchoolId = u.Id,
+                    DepartmentName = u.DepartmentName,
                     Role = u.Role,
                     AccountStatus = u.AccountStatus
                 })
@@ -102,6 +103,7 @@ public static class AdminEndpoints
                     LastName = r.LastName,
                     FullName = r.FullName,
                     SchoolId = r.Id,
+                    DepartmentName = r.DepartmentName,
                     RequestedRole = r.Role,
                     CreatedAtUtc = r.CreatedAtUtc,
                     Status = r.AccountStatus
@@ -130,6 +132,7 @@ public static class AdminEndpoints
                     LastName = r.LastName,
                     FullName = r.FullName,
                     SchoolId = r.Id,
+                    DepartmentName = r.DepartmentName,
                     RequestedRole = r.Role,
                     CreatedAtUtc = r.CreatedAtUtc,
                     Status = r.AccountStatus
@@ -164,7 +167,7 @@ public static class AdminEndpoints
 
         adminGroup.MapPut("/registrations/{id}/reject", async (
             string id,
-            RejectRegistrationRequest request,
+            RejectRegistrationRequest? request,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext dbContext,

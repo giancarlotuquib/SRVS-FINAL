@@ -32,9 +32,13 @@ public class RegisterRequest
     [JsonPropertyName("schoolId")]
     public string SchoolId { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Role is required.")]
+    [Required(ErrorMessage = "Please select a Role.")]
     [JsonPropertyName("role")]
-    public SRVS.Domain.Enums.UserRoleType Role { get; set; } = SRVS.Domain.Enums.UserRoleType.Student;
+    public SRVS.Domain.Enums.UserRoleType? Role { get; set; }
+
+    [Required(ErrorMessage = "Please select an Engineering Department.")]
+    [JsonPropertyName("departmentName")]
+    public string DepartmentName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Password is required.")]
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
@@ -65,4 +69,19 @@ public class ResetPasswordRequest
     [Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
     [JsonPropertyName("confirmPassword")]
     public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class RefreshTokenRequest
+{
+    [Required(ErrorMessage = "Refresh token is required.")]
+    [JsonPropertyName("refreshToken")]
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordRequest
+{
+    [Required(ErrorMessage = "Email address is required.")]
+    [EmailAddress(ErrorMessage = "Email must be a valid format.")]
+    [JsonPropertyName("email")]
+    public string Email { get; set; } = string.Empty;
 }

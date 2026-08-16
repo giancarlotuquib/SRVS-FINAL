@@ -231,8 +231,7 @@ app.MapAuthEndpoints();
 app.MapAdminEndpoints();
 app.MapSyllabusEndpoints();
 app.MapDeptHeadEndpoints();
-// app.MapCoursesEndpoints();
-// app.MapFacultyEndpoints();
+app.MapFacultyEndpoints();
 // app.MapStudentEndpoints();
 // app.MapProgramEndpoints();
 // app.MapDepartmentEndpoints();
@@ -438,11 +437,48 @@ static async Task SeedSrvsDataAsync(WebApplication app)
             };
             await userManager.CreateAsync(admin, adminPassword);
         }
+
+        // 3. Sync syllabus DepartmentName with owner user's DepartmentName
+        var syllabiToSync = await dbContext.SyllabusDocuments.ToListAsync();
+        var usersDict = await dbContext.Users.ToDictionaryAsync(u => u.Id, u => u.DepartmentName);
+        var changed = false;
+        foreach (var syllabus in syllabiToSync)
+        {
+            if (!string.IsNullOrEmpty(syllabus.OwnerUserId) && usersDict.TryGetValue(syllabus.OwnerUserId, out var ownerDept))
+            {
+                if (!string.IsNullOrWhiteSpace(ownerDept) && !string.Equals(syllabus.DepartmentName, ownerDept, StringComparison.OrdinalIgnoreCase))
+                {
+                    syllabus.DepartmentName = ownerDept;
+                }
+            }
+        }
+        // 4. Backfill existing SyllabusAssignment records with course/department details
+        var assignmentsToSync = await dbContext.SyllabusAssignments.ToListAsync();
+        var syllabiDict = syllabiToSync.ToDictionary(s => s.Id);
+        foreach (var assignment in assignmentsToSync)
+        {
+            if (syllabiDict.TryGetValue(assignment.SyllabusDocId, out var syllabus))
+            {
+                if (string.IsNullOrWhiteSpace(assignment.CourseCode) || string.IsNullOrWhiteSpace(assignment.CourseTitle))
+                {
+                    assignment.DepartmentName = syllabus.DepartmentName;
+                    assignment.CourseCode = syllabus.CourseCode;
+                    assignment.CourseTitle = syllabus.CourseTitle;
+                    assignment.Semester = syllabus.Semester;
+                    assignment.AcademicYear = syllabus.AcademicYear;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            await dbContext.SaveChangesAsync();
+        }
     }
     catch (Exception ex)
     {
         System.IO.File.WriteAllText("seeding_error.txt", ex.ToString());
-        throw;
     }
 }
 

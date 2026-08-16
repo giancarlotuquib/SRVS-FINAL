@@ -9,7 +9,7 @@ public sealed record SyllabusSearchItem(
     string DepartmentName,
     string AcademicYear,
     string Semester,
-    string InstructorName,
+    string InstructorId,
     int CurrentVersionNumber,
     SyllabusStatus Status,
     bool CanDownload,

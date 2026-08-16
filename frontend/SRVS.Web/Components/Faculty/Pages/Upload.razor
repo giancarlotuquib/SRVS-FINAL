@@ -85,8 +85,8 @@
                                     <InputText class="form-control" @bind-Value="Input.CourseTitle" disabled="@DocumentId.HasValue" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Instructor Name</label>
-                                    <InputText class="form-control" @bind-Value="Input.InstructorName" disabled="@DocumentId.HasValue" />
+                                    <label class="form-label">Instructor ID</label>
+                                    <InputText class="form-control" @bind-Value="Input.InstructorId" disabled="@DocumentId.HasValue" />
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Change Summary <span class="text-danger">*</span></label>
@@ -159,7 +159,7 @@
             if (doc is not null)
             {
                 savedDocumentId = doc.Id;
-                if (!SyllabusAccessPolicy.CanRevise(doc, currentUser.Role, currentUser.Id))
+                if (!SyllabusAccessPolicy.CanRevise(doc, currentUser.Role, currentUser.Id, currentUser.DepartmentName))
                 {
                     errorMessage = "You do not have permission to revise this syllabus.";
                 }
@@ -169,7 +169,7 @@
                     Input.CourseTitle = doc.CourseTitle;
                     Input.AcademicYear = doc.AcademicYear;
                     Input.Semester = doc.Semester;
-                    Input.InstructorName = doc.InstructorName;
+                    Input.InstructorId = doc.InstructorId;
                     // Leave ChangeSummary empty for the new revision
                 }
             }
@@ -178,14 +178,14 @@
                 DocumentId = null;
                 savedDocumentId = null;
 
-                Input.InstructorName = currentUser.FullName;
+                Input.InstructorId = currentUser.Id;
                 errorMessage = "The requested syllabus could not be found. A new draft can still be created.";
             }
         }
         else
         {
 
-            Input.InstructorName = currentUser.FullName;
+            Input.InstructorId = currentUser.Id;
         }
 
         isLoading = false;
@@ -231,12 +231,13 @@
                 Input.CourseTitle,
                 Input.AcademicYear,
                 Input.Semester,
-                Input.InstructorName,
+                Input.InstructorId,
                 Input.ChangeSummary,
                 stream,
                 fileName,
                 currentUser.Id,
-                currentUser.FullName);
+                currentUser.FullName,
+                currentUser.DepartmentName);
 
             var document = await WorkflowService.SaveDraftAsync(request);
             savedDocumentId = document.Id;
@@ -307,8 +308,8 @@
         [Required(ErrorMessage = "Semester is required")]
         public string Semester { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Instructor Name is required")]
-        public string InstructorName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Instructor ID is required")]
+        public string InstructorId { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "A change summary is mandatory for version tracking.")]
         public string ChangeSummary { get; set; } = string.Empty;

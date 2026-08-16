@@ -6,9 +6,10 @@ public sealed record SyllabusDraftUpsertRequest(
     string CourseTitle,
     string AcademicYear,
     string Semester,
-    string InstructorName,
+    string InstructorId,
     string ChangeSummary,
     Stream FileStream,
     string OriginalFileName,
     string UploadedByUserId,
-    string UploadedByName);
+    string UploadedByName,
+    string DepartmentName = "Computer Engineering");

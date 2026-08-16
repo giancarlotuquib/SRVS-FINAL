@@ -189,17 +189,17 @@
 
     private string Title => Role switch
     {
-        UserRoleType.Admin => "Manage Computer Engineering Department program, user approvals, and audit trails",
-        UserRoleType.DepartmentHead => "Computer Engineering Department syllabi review and oversight",
-        UserRoleType.Educator => "Computer Engineering Department syllabi, drafts, and revisions",
-        UserRoleType.Student => "Computer Engineering Department Syllabus Repository",
+        UserRoleType.Admin => "Manage Engineering Department programs, user approvals, and audit trails",
+        UserRoleType.DepartmentHead => $"{currentDepartmentName} Syllabi Review and Oversight",
+        UserRoleType.Educator => $"{currentDepartmentName} Syllabi, Drafts, and Revisions",
+        UserRoleType.Student => $"{currentDepartmentName} Syllabus Repository",
         _ => "Dashboard"
     };
 
     private string PrimaryPanelTitle => Role switch
     {
         UserRoleType.Admin => "Pending Registrations",
-        UserRoleType.DepartmentHead => "Pending CE Syllabus Reviews",
+        UserRoleType.DepartmentHead => $"Pending {SRVS.Domain.Constants.EngineeringDepartments.GetDepartmentCode(currentDepartmentName)} Syllabus Reviews",
         UserRoleType.Educator => "Syllabus Repository",
         UserRoleType.Student => "My Assigned Syllabi",
         _ => "Overview"
@@ -233,7 +233,10 @@
         }
 
         currentUserId = user.Id;
+        currentDepartmentName = user.DepartmentName;
     }
+
+    private string currentDepartmentName = "Computer Engineering";
 
     private async Task ReloadAsync()
     {
@@ -300,10 +303,10 @@
 
     private async Task<IReadOnlyList<DashboardStat>> LoadDepartmentHeadStatsAsync(ApplicationDbContext dbContext)
     {
-        var pendingReviews = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Submitted);
-        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved);
-        var total = await dbContext.SyllabusDocuments.CountAsync();
-        var reviewers = await dbContext.Users.CountAsync(user => user.Role == UserRoleType.DepartmentHead);
+        var pendingReviews = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Submitted && document.DepartmentName == currentDepartmentName);
+        var approved = await dbContext.SyllabusDocuments.CountAsync(document => document.Status == SyllabusStatus.Approved && document.DepartmentName == currentDepartmentName);
+        var total = await dbContext.SyllabusDocuments.CountAsync(document => document.DepartmentName == currentDepartmentName);
+        var reviewers = await dbContext.Users.CountAsync(user => user.Role == UserRoleType.DepartmentHead && user.DepartmentName == currentDepartmentName);
 
         return new[]
         {
@@ -386,7 +389,7 @@
     {
         var pendingReviewsList = await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Where(document => document.Status == SyllabusStatus.Submitted)
+            .Where(document => document.Status == SyllabusStatus.Submitted && document.DepartmentName == currentDepartmentName)
             .ToListAsync();
 
         var pendingReviews = pendingReviewsList
@@ -396,6 +399,7 @@
 
         var recentDocsList = await dbContext.SyllabusDocuments
             .AsNoTracking()
+            .Where(document => document.DepartmentName == currentDepartmentName)
             .ToListAsync();
 
         var recentDocs = recentDocsList
@@ -406,7 +410,7 @@
         var primary = pendingReviews.Select(document => new DashboardPrimaryItem(
             document.CourseCode,
             document.CourseTitle,
-            $"Instructor: {document.InstructorName}",
+            $"Instructor ID: {document.InstructorId}",
             document.Status.ToString(),
             Href: $"/syllabi/{document.Id}",
             ActionLabel: "Review")).ToList();
@@ -456,16 +460,9 @@
             return [];
         }
 
-        var uploadedDocumentIds = await dbContext.SyllabusVersions
-            .AsNoTracking()
-            .Where(version => version.UploadedByUserId == currentUserId)
-            .Select(version => version.SyllabusDocumentId)
-            .Distinct()
-            .ToListAsync();
-
         var documents = await dbContext.SyllabusDocuments
             .AsNoTracking()
-            .Where(document => document.OwnerUserId == currentUserId || uploadedDocumentIds.Contains(document.Id))
+            .Where(document => document.OwnerUserId == currentUserId)
             .ToListAsync();
 
         return documents
@@ -499,7 +496,7 @@
         var primary = assignedData.Select(item => item.Document).Select(document => new DashboardPrimaryItem(
             document.CourseCode,
             document.CourseTitle,
-            $"{document.Semester} • {document.InstructorName}",
+            $"{document.Semester} • Instructor ID: {document.InstructorId}",
             document.CurrentVersionNumber.ToString(),
             $"/syllabi/{document.Id}",
             "View Syllabus")).ToList();

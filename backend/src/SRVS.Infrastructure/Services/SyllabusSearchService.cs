@@ -14,8 +14,8 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var documents = await BuildScopedQuery(dbContext, role, userId, request.Status)
-            .ToListAsync(cancellationToken);
+        var scopedQuery = await BuildScopedQueryAsync(dbContext, role, userId, request.Status, cancellationToken);
+        var documents = await scopedQuery.ToListAsync(cancellationToken);
 
         var orderedDocuments = documents
             .OrderByDescending(document => document.UpdatedAtUtc ?? document.CreatedAtUtc)
@@ -33,7 +33,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
                 string.Empty,
                 document.AcademicYear,
                 document.Semester,
-                document.InstructorName,
+                document.InstructorId,
                 document.CurrentVersionNumber,
                 document.Status,
                 CanAccessDocument(document, role, userId, isAssignedViewerDocument: role == UserRoleType.Student),
@@ -67,24 +67,34 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
         return CanAccessDocument(document, role, userId, isAssignedViewerDocument) ? document : null;
     }
 
-    private static IQueryable<SyllabusDocument> BuildScopedQuery(ApplicationDbContext dbContext, UserRoleType role, string userId, SyllabusStatus? statusFilter)
+    private static async Task<IQueryable<SyllabusDocument>> BuildScopedQueryAsync(ApplicationDbContext dbContext, UserRoleType role, string userId, SyllabusStatus? statusFilter, CancellationToken cancellationToken)
     {
         var query = dbContext.SyllabusDocuments.AsQueryable();
 
+        if (role == UserRoleType.Admin)
+        {
+            return query;
+        }
+
+        var userDepartment = await dbContext.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.DepartmentName)
+            .FirstOrDefaultAsync(cancellationToken) ?? "Computer Engineering";
+
         return role switch
         {
-            UserRoleType.Admin => query,
-            UserRoleType.DepartmentHead => query,
-            UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId),
+            UserRoleType.DepartmentHead => query.Where(document => document.DepartmentName == userDepartment),
+            UserRoleType.Educator => query.Where(document => document.OwnerUserId == userId && document.DepartmentName == userDepartment),
             UserRoleType.Student => query.Where(document =>
-                document.Status == SyllabusStatus.Approved
+                document.DepartmentName == userDepartment
+                && document.Status == SyllabusStatus.Approved
                 && document.IsPublished
                 && dbContext.SyllabusAssignments.Any(assignment =>
                     assignment.StudentId == userId
                     && assignment.SyllabusDocId == document.Id
                     && assignment.IsActive
                     && assignment.DeletedAt == null)),
-            _ => query.Where(document => document.Status == SyllabusStatus.Approved && document.IsPublished)
+            _ => query.Where(document => document.DepartmentName == userDepartment && document.Status == SyllabusStatus.Approved && document.IsPublished)
         };
     }
 
@@ -112,7 +122,7 @@ public class SyllabusSearchService(IDbContextFactory<ApplicationDbContext> dbCon
                 document.CourseTitle.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 document.AcademicYear.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 document.Semester.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                document.InstructorName.Contains(term, StringComparison.OrdinalIgnoreCase));
+                document.InstructorId.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         if (request.Status is not null)

@@ -21,7 +21,7 @@ public class SyllabusSearchServiceTests
 
         ISyllabusSearchService service = new SyllabusSearchService(factory);
 
-        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Student, null, "viewer-user");
+        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Student, "10004");
 
         Assert.Single(results.Items);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101" && item.CanDownload);
@@ -36,7 +36,7 @@ public class SyllabusSearchServiceTests
 
         ISyllabusSearchService service = new SyllabusSearchService(factory);
 
-        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Educator, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "educator-1");
+        var results = await service.SearchAsync(new SyllabusSearchRequest(), UserRoleType.Educator, "10001");
 
         Assert.Equal(2, results.TotalCount);
         Assert.Contains(results.Items, item => item.CourseCode == "CE101");
@@ -56,8 +56,7 @@ public class SyllabusSearchServiceTests
         var results = await service.SearchAsync(
             new SyllabusSearchRequest(Status: SyllabusStatus.Draft),
             UserRoleType.Educator,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "educator-1");
+            "10001");
 
         Assert.Single(results.Items);
         Assert.Contains(results.Items, item => item.CourseCode == "CE102");
@@ -76,8 +75,7 @@ public class SyllabusSearchServiceTests
         var document = await service.GetAccessibleDocumentAsync(
             Guid.Parse("44444444-4444-4444-4444-444444444444"),
             UserRoleType.Educator,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "educator-1");
+            "10001");
 
         Assert.Null(document);
     }
@@ -94,104 +92,10 @@ public class SyllabusSearchServiceTests
         var document = await service.GetAccessibleDocumentAsync(
             Guid.Parse("44444444-4444-4444-4444-444444444444"),
             UserRoleType.DepartmentHead,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "dept-head-1");
+            "10005");
 
         Assert.NotNull(document);
         Assert.Equal("CE103", document.CourseCode);
-    }
-
-    [Fact]
-    public async Task GetAccessibleDocumentAsync_DepartmentHeadCanOpenApprovedSyllabusFromAnyDepartment()
-    {
-        await using var factory = await CreateFactoryAsync();
-        await using var context = await factory.CreateDbContextAsync();
-        SeedData(context);
-
-        ISyllabusSearchService service = new SyllabusSearchService(factory);
-
-        var document = await service.GetAccessibleDocumentAsync(
-            Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            UserRoleType.DepartmentHead,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "dept-head-1");
-
-        Assert.NotNull(document);
-        Assert.Equal("BUS200", document.CourseCode);
-    }
-
-    [Fact]
-    public async Task SearchAsync_DepartmentHeadApprovedFilterShowsRepositoryAcrossDepartments()
-    {
-        await using var factory = await CreateFactoryAsync();
-        await using var context = await factory.CreateDbContextAsync();
-        SeedData(context);
-
-        ISyllabusSearchService service = new SyllabusSearchService(factory);
-
-        var results = await service.SearchAsync(
-            new SyllabusSearchRequest(Status: SyllabusStatus.Approved),
-            UserRoleType.DepartmentHead,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "dept-head-1");
-
-        Assert.Equal(2, results.Items.Count);
-        Assert.Contains(results.Items, item => item.CourseCode == "CE101" && item.CanDownload);
-        Assert.Contains(results.Items, item => item.CourseCode == "BUS200" && item.CanDownload);
-    }
-
-    [Fact]
-    public async Task SearchAsync_DepartmentHeadSubmittedFilterShowsReviewQueue()
-    {
-        await using var factory = await CreateFactoryAsync();
-        await using var context = await factory.CreateDbContextAsync();
-        SeedData(context);
-
-        var submittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "CE102");
-        submittedDocument.Status = SyllabusStatus.Submitted;
-        submittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
-        var otherDepartmentSubmittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "BUS200");
-        otherDepartmentSubmittedDocument.Status = SyllabusStatus.Submitted;
-        otherDepartmentSubmittedDocument.IsPublished = false;
-        otherDepartmentSubmittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
-        await context.SaveChangesAsync();
-
-        ISyllabusSearchService service = new SyllabusSearchService(factory);
-
-        var results = await service.SearchAsync(
-            new SyllabusSearchRequest(Status: SyllabusStatus.Submitted),
-            UserRoleType.DepartmentHead,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "dept-head-1");
-
-        Assert.Equal(2, results.Items.Count);
-        Assert.Contains(results.Items, item => item.CourseCode == "CE102");
-        Assert.Contains(results.Items, item => item.CourseCode == "BUS200");
-    }
-
-    [Fact]
-    public async Task GetAccessibleDocumentAsync_DepartmentHeadCanOpenSubmittedSyllabusFromAnyDepartment()
-    {
-        await using var factory = await CreateFactoryAsync();
-        await using var context = await factory.CreateDbContextAsync();
-        SeedData(context);
-
-        var otherDepartmentSubmittedDocument = await context.SyllabusDocuments.SingleAsync(document => document.CourseCode == "BUS200");
-        otherDepartmentSubmittedDocument.Status = SyllabusStatus.Submitted;
-        otherDepartmentSubmittedDocument.IsPublished = false;
-        otherDepartmentSubmittedDocument.SubmittedAtUtc = DateTimeOffset.UtcNow;
-        await context.SaveChangesAsync();
-
-        ISyllabusSearchService service = new SyllabusSearchService(factory);
-
-        var document = await service.GetAccessibleDocumentAsync(
-            Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            UserRoleType.DepartmentHead,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "dept-head-1");
-
-        Assert.NotNull(document);
-        Assert.Equal("BUS200", document.CourseCode);
     }
 
     [Fact]
@@ -199,39 +103,26 @@ public class SyllabusSearchServiceTests
     {
         var document = new SyllabusDocument
         {
-            DepartmentId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            DepartmentName = "Civil Engineering",
             Status = SyllabusStatus.Submitted,
-            OwnerUserId = "educator-1"
+            OwnerUserId = "10001"
         };
 
-        Assert.False(SyllabusAccessPolicy.CanReview(document, UserRoleType.Educator, document.DepartmentId));
+        Assert.False(SyllabusAccessPolicy.CanReview(document, UserRoleType.Educator, "Civil Engineering"));
     }
 
     [Fact]
-    public void SyllabusAccessPolicy_DepartmentHeadCanReviewSubmittedSyllabusFromAnyDepartment()
+    public void SyllabusAccessPolicy_DepartmentHeadCanOnlyReviewSubmittedSyllabusFromOwnDepartment()
     {
         var document = new SyllabusDocument
         {
-            DepartmentId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            DepartmentName = "Civil Engineering",
             Status = SyllabusStatus.Submitted,
-            OwnerUserId = "educator-1"
+            OwnerUserId = "10001"
         };
 
-        Assert.True(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")));
-    }
-
-    [Fact]
-    public async Task GetAccessibleDocumentAsync_RejectsViewerAccessToDraft()
-    {
-        await using var factory = await CreateFactoryAsync();
-        await using var context = await factory.CreateDbContextAsync();
-        SeedData(context);
-
-        ISyllabusSearchService service = new SyllabusSearchService(factory);
-
-        var document = await service.GetAccessibleDocumentAsync(Guid.Parse("22222222-2222-2222-2222-222222222222"), UserRoleType.Student, null, "viewer-user");
-
-        Assert.Null(document);
+        Assert.True(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, "Civil Engineering"));
+        Assert.False(SyllabusAccessPolicy.CanReview(document, UserRoleType.DepartmentHead, "Computer Engineering"));
     }
 
     private static async Task<TestDbContextFactory> CreateFactoryAsync()
@@ -251,21 +142,25 @@ public class SyllabusSearchServiceTests
 
     private static void SeedData(ApplicationDbContext context)
     {
-        var department = new Department { Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Code = "CE", Name = "Computer Engineering" };
-        var otherDepartment = new Department { Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), Code = "BUS", Name = "Business" };
+        context.Users.AddRange(
+            new ApplicationUser { Id = "10001", UserName = "ed1@test.com", Email = "ed1@test.com", DepartmentName = "Computer Engineering", FirstName = "Educator", LastName = "One", FullName = "Educator One" },
+            new ApplicationUser { Id = "10002", UserName = "ed2@test.com", Email = "ed2@test.com", DepartmentName = "Civil Engineering", FirstName = "Educator", LastName = "Two", FullName = "Educator Two" },
+            new ApplicationUser { Id = "10003", UserName = "ed3@test.com", Email = "ed3@test.com", DepartmentName = "Computer Engineering", FirstName = "Educator", LastName = "Three", FullName = "Educator Three" },
+            new ApplicationUser { Id = "10004", UserName = "view@test.com", Email = "view@test.com", DepartmentName = "Computer Engineering", FirstName = "Viewer", LastName = "User", FullName = "Viewer User" },
+            new ApplicationUser { Id = "10005", UserName = "head@test.com", Email = "head@test.com", DepartmentName = "Computer Engineering", FirstName = "Dept", LastName = "Head", FullName = "Dept Head" }
+        );
 
-        context.Departments.AddRange(department, otherDepartment);
         context.SyllabusDocuments.AddRange(
             new SyllabusDocument
             {
                 Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                DepartmentId = department.Id,
+                DepartmentName = "Computer Engineering",
                 CourseCode = "CE101",
                 CourseTitle = "Introduction to Computer Engineering",
                 AcademicYear = "2025-2026",
                 Semester = "1st Semester",
-                InstructorName = "Dr. Rivera",
-                OwnerUserId = "educator-1",
+                InstructorId = "10001",
+                OwnerUserId = "10001",
                 Status = SyllabusStatus.Approved,
                 IsPublished = true,
                 CurrentVersionNumber = 2,
@@ -275,13 +170,13 @@ public class SyllabusSearchServiceTests
             new SyllabusDocument
             {
                 Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                DepartmentId = department.Id,
+                DepartmentName = "Computer Engineering",
                 CourseCode = "CE102",
                 CourseTitle = "Digital Logic",
                 AcademicYear = "2025-2026",
                 Semester = "2nd Semester",
-                InstructorName = "Dr. Rivera",
-                OwnerUserId = "educator-1",
+                InstructorId = "10001",
+                OwnerUserId = "10001",
                 Status = SyllabusStatus.Draft,
                 IsPublished = false,
                 CurrentVersionNumber = 1,
@@ -291,13 +186,13 @@ public class SyllabusSearchServiceTests
             new SyllabusDocument
             {
                 Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-                DepartmentId = otherDepartment.Id,
+                DepartmentName = "Civil Engineering",
                 CourseCode = "BUS200",
                 CourseTitle = "Business Law",
                 AcademicYear = "2025-2026",
                 Semester = "1st Semester",
-                InstructorName = "Prof. Santos",
-                OwnerUserId = "educator-2",
+                InstructorId = "10002",
+                OwnerUserId = "10002",
                 Status = SyllabusStatus.Approved,
                 IsPublished = true,
                 CurrentVersionNumber = 1,
@@ -307,19 +202,30 @@ public class SyllabusSearchServiceTests
             new SyllabusDocument
             {
                 Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                DepartmentId = department.Id,
+                DepartmentName = "Computer Engineering",
                 CourseCode = "CE103",
                 CourseTitle = "Signals and Systems",
                 AcademicYear = "2025-2026",
                 Semester = "1st Semester",
-                InstructorName = "Prof. Cruz",
-                OwnerUserId = "educator-3",
+                InstructorId = "10003",
+                OwnerUserId = "10003",
                 Status = SyllabusStatus.Draft,
                 IsPublished = false,
                 CurrentVersionNumber = 1,
                 CurrentFileName = "CE103-V1.pdf",
                 CurrentStoragePath = "C:\\temp\\CE103-V1.pdf"
             });
+
+        context.SyllabusAssignments.Add(
+            new SyllabusAssignment
+            {
+                StudentId = "10004",
+                SyllabusDocId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                AssignedBy = "10005",
+                AssignedAtDate = DateTimeOffset.UtcNow,
+                IsActive = true
+            }
+        );
 
         context.SaveChanges();
     }

@@ -121,15 +121,14 @@
         <!-- Secondary Document Viewer (Side-by-Side Comparison) -->
         @if (comparisonVersionId.HasValue)
         {
-            var compVersion = document.Versions.FirstOrDefault(v => v.Id == comparisonVersionId.Value);
             <div class="col-lg-6 d-flex flex-column" style="min-height: 75vh;">
                 <div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden" style="border-left: 3px solid #145c3d !important;">
                     <div class="card-header bg-white border-bottom-0 pt-3 pb-2 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 text-secondary">
-                            <i class="bi bi-clock-history me-2"></i>Historical Version (V@(compVersion?.VersionNumber))
+                            <i class="bi bi-clock-history me-2"></i>Historical Version (V@(document.CurrentVersionNumber))
                         </h5>
                         <div>
-                            <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
+                            <a href="/syllabi/@(document.Id)/download" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
                                 <i class="bi bi-download"></i>
                             </a>
                             <button class="btn btn-sm btn-outline-danger" @onclick="CloseComparison">
@@ -138,9 +137,9 @@
                         </div>
                     </div>
                     <div class="card-body p-0 flex-grow-1 position-relative" style="min-height: 500px;">
-                        @if (compVersion?.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true)
+                        @if (document.CurrentFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true)
                         {
-                            <iframe src="/syllabi/versions/@(compVersion.Id)/view" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="Comparison PDF Viewer"></iframe>
+                            <iframe src="/syllabi/@(document.Id)/view" class="w-100 h-100 border-0 position-absolute top-0 start-0" title="Comparison PDF Viewer"></iframe>
                         }
                         else
                         {
@@ -148,7 +147,7 @@
                                 <div class="text-center p-4">
                                     <i class="bi bi-file-earmark-word display-1 text-secondary mb-3"></i>
                                     <h4>Word Document</h4>
-                                    <a href="/syllabi/versions/@(compVersion?.Id)/download" class="btn btn-secondary mt-2">Download</a>
+                                    <a href="/syllabi/@(document.Id)/download" class="btn btn-secondary mt-2">Download</a>
                                 </div>
                             </div>
                         }
@@ -182,48 +181,31 @@
 
                 <div class="card border-0 shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
                     <div class="card-header bg-white pt-4 pb-0 border-0">
-                        <h5 class="mb-3">Version History</h5>
+                        <h5 class="mb-3">Version Details</h5>
                     </div>
                     <div class="card-body overflow-auto p-0">
                         <div class="list-group list-group-flush">
-                            @foreach (var version in document.Versions.OrderByDescending(v => v.VersionNumber))
-                            {
-                                <div class="list-group-item p-4 @(version.VersionNumber == document.CurrentVersionNumber ? "bg-light" : "")">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="mb-0 fw-bold">Version @version.VersionNumber</h6>
-                                        <span class="text-secondary small">@version.UploadedAtUtc.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
-                                    </div>
-                                    <p class="small mb-1 text-dark"><strong>Uploaded by:</strong> @version.UploadedByName</p>
-                                    
-                                    @if (!string.IsNullOrWhiteSpace(version.ChangeSummary))
-                                    {
-                                        <p class="small mb-3 text-secondary border-start border-3 ps-2 mt-2">@version.ChangeSummary</p>
-                                    }
-
-                                    <div class="d-flex gap-2 mt-3">
-                                        @if (isDepartmentHead || isOwner)
-                                        {
-                                            <a href="/syllabi/versions/@version.Id/download" class="btn btn-sm btn-outline-secondary" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        }
-                                        
-                                        @if (version.VersionNumber != document.CurrentVersionNumber && (isDepartmentHead || isOwner))
-                                        {
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => CompareVersion(version.Id)" title="Side-by-side Compare">
-                                                <i class="bi bi-layout-split"></i> Compare
-                                            </button>
-                                        }
-
-                                        @if (version.VersionNumber != document.CurrentVersionNumber && isOwner && document.Status is SyllabusStatus.Draft or SyllabusStatus.Rejected)
-                                        {
-                                            <button class="btn btn-sm btn-outline-warning" @onclick="() => InitiateRestore(version)" title="Restore this version">
-                                                <i class="bi bi-arrow-counterclockwise"></i> Restore
-                                            </button>
-                                        }
-                                    </div>
+                            <div class="list-group-item p-4 bg-light">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-0 fw-bold">Version @document.CurrentVersionNumber</h6>
+                                    <span class="text-secondary small">@(document.SubmittedAtUtc?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? document.CreatedAtUtc.ToLocalTime().ToString("MMM dd, yyyy HH:mm"))</span>
                                 </div>
-                            }
+                                <p class="small mb-1 text-dark"><strong>Instructor ID:</strong> @document.InstructorId</p>
+                                
+                                @if (!string.IsNullOrWhiteSpace(document.LatestChangeSummary))
+                                {
+                                    <p class="small mb-3 text-secondary border-start border-3 ps-2 mt-2">@document.LatestChangeSummary</p>
+                                }
+
+                                <div class="d-flex gap-2 mt-3">
+                                    @if (isDepartmentHead || isOwner)
+                                    {
+                                        <a href="/syllabi/@document.Id/download" class="btn btn-sm btn-outline-secondary" title="Download">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -350,16 +332,15 @@
         {
             await using var dbContext = await DbFactory.CreateDbContextAsync();
             document = await dbContext.SyllabusDocuments
-                .Include(d => d.Versions)
                 .FirstOrDefaultAsync(d => d.Id == Id);
 
             if (document is not null)
             {
                 isDepartmentHead = currentUser!.Role == UserRoleType.DepartmentHead;
                 isOwner = currentUser.Id == document.OwnerUserId;
-                canReview = document.Status == SyllabusStatus.Submitted && currentUser.Role == UserRoleType.DepartmentHead;
-                canSubmit = SyllabusAccessPolicy.CanSubmit(document, currentUser.Role, currentUser.Id);
-                canRevise = SyllabusAccessPolicy.CanRevise(document, currentUser.Role, currentUser.Id);
+                canReview = document.Status == SyllabusStatus.Submitted && currentUser.Role == UserRoleType.DepartmentHead && string.Equals(document.DepartmentName, currentUser.DepartmentName, StringComparison.OrdinalIgnoreCase);
+                canSubmit = SyllabusAccessPolicy.CanSubmit(document, currentUser.Role, currentUser.Id, currentUser.DepartmentName);
+                canRevise = SyllabusAccessPolicy.CanRevise(document, currentUser.Role, currentUser.Id, currentUser.DepartmentName);
 
                 if (!await CanCurrentUserViewDocumentAsync(dbContext))
                 {
@@ -379,6 +360,11 @@
     private async Task<bool> CanCurrentUserViewDocumentAsync(ApplicationDbContext dbContext)
     {
         if (currentUser is null || document is null)
+        {
+            return false;
+        }
+
+        if (currentUser.Role != UserRoleType.Admin && !string.Equals(document.DepartmentName, currentUser.DepartmentName, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

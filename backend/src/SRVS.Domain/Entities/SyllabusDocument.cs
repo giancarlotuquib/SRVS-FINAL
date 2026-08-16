@@ -14,7 +14,9 @@ public class SyllabusDocument : EntityBase
 
     public string Semester { get; set; } = string.Empty;
 
-    public string InstructorName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = "Computer Engineering";
+
+    public string InstructorId { get; set; } = string.Empty;
 
     public string OwnerUserId { get; set; } = string.Empty;
 
@@ -37,6 +39,4 @@ public class SyllabusDocument : EntityBase
     public DateTimeOffset? ReviewedAtUtc { get; set; }
 
     public string? ReviewedByUserId { get; set; }
-
-    public ICollection<SyllabusVersion> Versions { get; set; } = new List<SyllabusVersion>();
 }

@@ -71,6 +71,7 @@
                         <tr>
                             <th>Requested By</th>
                             <th>School ID</th>
+                            <th>Department</th>
                             <th>Requested Role</th>
                             <th>Requested At</th>
                             <th>Status</th>
@@ -94,6 +95,7 @@
                                         <div class="text-secondary small">@request.Email</div>
                                     </td>
                                     <td class="fw-semibold">@request.InstitutionalId</td>
+                                    <td><span class="badge text-bg-info text-dark">@request.DepartmentName</span></td>
                                     <td><span class="badge text-bg-light">@GetRoleLabel(request.Role)</span></td>
                                     <td class="text-secondary small">@request.CreatedAtUtc.ToLocalTime().ToString("g")</td>
                                     <td>

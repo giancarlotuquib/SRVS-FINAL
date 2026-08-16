@@ -17,6 +17,11 @@ public class SyllabusWorkflowService(
 
         SyllabusDocument document;
         var isNewDocument = request.SyllabusDocumentId is null;
+        var uploader = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == request.UploadedByUserId, cancellationToken);
+        var effectiveDepartment = !string.IsNullOrWhiteSpace(request.DepartmentName)
+            ? request.DepartmentName.Trim()
+            : (uploader?.DepartmentName ?? "Computer Engineering");
+
         if (request.SyllabusDocumentId is null)
         {
             document = new SyllabusDocument
@@ -26,7 +31,8 @@ public class SyllabusWorkflowService(
                 CourseTitle = request.CourseTitle.Trim(),
                 AcademicYear = request.AcademicYear.Trim(),
                 Semester = request.Semester.Trim(),
-                InstructorName = request.InstructorName.Trim(),
+                DepartmentName = effectiveDepartment,
+                InstructorId = string.IsNullOrWhiteSpace(request.InstructorId) ? request.UploadedByUserId : request.InstructorId.Trim(),
                 OwnerUserId = request.UploadedByUserId,
                 Status = SyllabusStatus.Draft,
                 IsPublished = false
@@ -35,7 +41,6 @@ public class SyllabusWorkflowService(
         else
         {
             document = await dbContext.SyllabusDocuments
-                .Include(item => item.Versions)
                 .FirstOrDefaultAsync(item => item.Id == request.SyllabusDocumentId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("The requested syllabus could not be found.");
         }
@@ -45,7 +50,7 @@ public class SyllabusWorkflowService(
             throw new InvalidOperationException("Submitted or approved syllabi cannot be overwritten.");
         }
 
-        var nextVersionNumber = document.Versions.Count == 0 ? 1 : document.Versions.Max(version => version.VersionNumber) + 1;
+        var nextVersionNumber = document.CurrentVersionNumber + 1;
         var extension = Path.GetExtension(request.OriginalFileName);
         if (string.IsNullOrWhiteSpace(extension))
         {
@@ -61,7 +66,8 @@ public class SyllabusWorkflowService(
         document.CourseTitle = request.CourseTitle.Trim();
         document.AcademicYear = request.AcademicYear.Trim();
         document.Semester = request.Semester.Trim();
-        document.InstructorName = request.InstructorName.Trim();
+        document.DepartmentName = effectiveDepartment;
+        document.InstructorId = string.IsNullOrWhiteSpace(request.InstructorId) ? request.UploadedByUserId : request.InstructorId.Trim();
         document.Status = SyllabusStatus.Draft;
         document.IsPublished = false;
         document.LatestChangeSummary = request.ChangeSummary.Trim();
@@ -74,18 +80,6 @@ public class SyllabusWorkflowService(
         {
             dbContext.SyllabusDocuments.Add(document);
         }
-
-        document.Versions.Add(new SyllabusVersion
-        {
-            VersionNumber = nextVersionNumber,
-            FileName = fileName,
-            StoragePath = storagePath,
-            UploadedByUserId = request.UploadedByUserId,
-            UploadedByName = request.UploadedByName,
-            ChangeSummary = request.ChangeSummary.Trim(),
-            StatusSnapshot = SyllabusStatus.Draft,
-            UploadedAtUtc = DateTimeOffset.UtcNow
-        });
 
         dbContext.AuditLogEntries.Add(new AuditLogEntry
         {
@@ -174,37 +168,14 @@ public class SyllabusWorkflowService(
 
     public async Task<SyllabusDocument> RestoreVersionAsync(Guid syllabusVersionId, string actorUserId, string actorName, CancellationToken cancellationToken = default)
     {
-        var version = await dbContext.SyllabusVersions
-            .Include(item => item.SyllabusDocument)!
-            .ThenInclude(item => item!.Versions)
+        var document = await dbContext.SyllabusDocuments
             .FirstOrDefaultAsync(item => item.Id == syllabusVersionId, cancellationToken)
-            ?? throw new InvalidOperationException("The selected version could not be found.");
+            ?? throw new InvalidOperationException("The selected syllabus document could not be found.");
 
-        var document = version.SyllabusDocument ?? throw new InvalidOperationException("The selected version is not attached to a syllabus.");
-        await using var stream = await fileStorage.OpenReadAsync(version.StoragePath, cancellationToken);
-        var restoredVersionNumber = document.Versions.Max(item => item.VersionNumber) + 1;
-        var restoredFileName = SyllabusFileNaming.BuildVersionedFileName(document.CourseCode, document.Semester, restoredVersionNumber, Path.GetExtension(version.FileName));
-        var restoredStoragePath = await fileStorage.SaveAsync(stream, restoredFileName, cancellationToken);
-
-        document.CurrentVersionNumber = restoredVersionNumber;
-        document.CurrentFileName = restoredFileName;
-        document.CurrentStoragePath = restoredStoragePath;
         document.Status = SyllabusStatus.Draft;
         document.IsPublished = false;
-        document.LatestChangeSummary = $"Restored content from Version {version.VersionNumber}";
+        document.LatestChangeSummary = $"Restored content for {document.CourseCode}";
         document.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        document.Versions.Add(new SyllabusVersion
-        {
-            VersionNumber = restoredVersionNumber,
-            FileName = restoredFileName,
-            StoragePath = restoredStoragePath,
-            UploadedByUserId = actorUserId,
-            UploadedByName = actorName,
-            ChangeSummary = $"Restored content from Version {version.VersionNumber}",
-            StatusSnapshot = SyllabusStatus.Draft,
-            UploadedAtUtc = DateTimeOffset.UtcNow
-        });
 
         dbContext.AuditLogEntries.Add(new AuditLogEntry
         {
@@ -212,7 +183,7 @@ public class SyllabusWorkflowService(
             UserDisplayName = actorName,
             ActionType = AuditActionType.SyllabusRestored,
             ResultStatus = AuditResultStatus.Success,
-            Description = $"Restored syllabus '{document.CourseCode}' to version {version.VersionNumber}.",
+            Description = $"Restored syllabus '{document.CourseCode}' to version {document.CurrentVersionNumber}.",
             EntityType = nameof(SyllabusDocument),
             EntityId = document.Id.ToString()
         });
@@ -224,7 +195,6 @@ public class SyllabusWorkflowService(
     private async Task<SyllabusDocument> LoadDocumentAsync(Guid syllabusDocumentId, CancellationToken cancellationToken)
     {
         return await dbContext.SyllabusDocuments
-            .Include(item => item.Versions)
             .FirstOrDefaultAsync(item => item.Id == syllabusDocumentId, cancellationToken)
             ?? throw new InvalidOperationException("The requested syllabus could not be found.");
     }

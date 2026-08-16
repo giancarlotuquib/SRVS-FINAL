@@ -9,6 +9,7 @@ public class PendingUserDto
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string InstitutionalId { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = "Computer Engineering";
     public UserRoleType Role { get; set; }
     public UserAccountStatus Status { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }

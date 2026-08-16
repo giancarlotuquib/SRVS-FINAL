@@ -15,7 +15,7 @@
         <img class="navbar-logo" src="images/cpe_logo.png?v=202606231815" alt="Computer Engineering Department logo" />
         <span>
             <span class="navbar-title">SRVS</span>
-            <span class="navbar-subtitle">USJR Computer Engineering Department</span>
+            <span class="navbar-subtitle">College of Engineering @(!string.IsNullOrEmpty(currentUser?.DepartmentName) ? $"• {currentUser.DepartmentName}" : "")</span>
         </span>
     </a>
 

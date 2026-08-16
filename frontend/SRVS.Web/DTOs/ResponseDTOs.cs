@@ -12,6 +12,7 @@ public class AdminUserResponse
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string SchoolId { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
     public UserRoleType Role { get; set; }
     public UserAccountStatus AccountStatus { get; set; }
 }
@@ -24,6 +25,7 @@ public class RegistrationResponse
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string SchoolId { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
     public UserRoleType RequestedRole { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public UserAccountStatus Status { get; set; }

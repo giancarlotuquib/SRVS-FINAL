@@ -38,7 +38,7 @@
                             <line x1="3" y1="18" x2="21" y2="18"></line>
                         </svg>
                     </label>
-                    <div class="top-row__title">Computer Engineering Department Portal</div>
+                    <div class="top-row__title">College of Engineering @(!string.IsNullOrEmpty(currentDepartmentName) ? $"({currentDepartmentName})" : "")</div>
                 </div>
             </header>
         }
@@ -78,6 +78,7 @@
 @code {
     private bool showSidebar;
     private UserRoleType? currentRole;
+    private string currentDepartmentName = "Computer Engineering";
 
     protected override async Task OnInitializedAsync()
     {
@@ -101,6 +102,7 @@
         var user = await userManager.GetUserAsync(authState.User);
         
         currentRole = user?.Role;
+        currentDepartmentName = user?.DepartmentName ?? "Computer Engineering";
 
         UpdateSidebarVisibility();
         await InvokeAsync(StateHasChanged);

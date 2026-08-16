@@ -70,7 +70,7 @@
                             <tr>
                                 <td class="fw-semibold">@item.CourseCode</td>
                                 <td>@item.CourseTitle</td>
-                                <td class="text-secondary small">@item.InstructorName</td>
+                                <td class="text-secondary small">@item.InstructorId</td>
                                 <td>@item.AcademicYear / @item.Semester</td>
                                 <td>
                                     @if (IsReviewSubmissionsPage)
@@ -140,7 +140,7 @@
             ? "Syllabus Repository"
         : IsFacultyReviewPage
             ? "Review Syllabi"
-        : "Computer Engineering Department Syllabus Repository";
+        : $"{currentUser?.DepartmentName ?? "Engineering"} Department Syllabus Repository";
 
     private string Eyebrow => IsReviewSubmissionsPage
         ? "Department Head Review Queue"
@@ -150,7 +150,7 @@
             ? "Faculty Repository"
         : IsFacultyReviewPage
             ? "Faculty Syllabus Workspace"
-        : "Computer Engineering Department Repository";
+        : $"{currentUser?.DepartmentName ?? "Engineering"} Department Repository";
 
     private string Heading => IsReviewSubmissionsPage
         ? "Review submitted syllabi"
@@ -160,17 +160,17 @@
             ? "Review and submit syllabus drafts"
         : IsFacultyReviewPage
             ? "Review and submit syllabi"
-        : "Search Computer Engineering Department syllabi";
+        : $"Search {currentUser?.DepartmentName ?? "Engineering"} Department syllabi";
 
     private string Description => IsReviewSubmissionsPage
-        ? "Review Computer Engineering Department syllabi submitted for department head approval."
+        ? $"Review {currentUser?.DepartmentName ?? "Engineering"} Department syllabi submitted for department head approval."
         : IsDepartmentHeadRepositoryPage
-            ? "View the repository of faculty-uploaded Computer Engineering Department syllabi."
+            ? $"View the repository of faculty-uploaded {currentUser?.DepartmentName ?? "Engineering"} Department syllabi."
         : IsFacultyDraftsPage
             ? "Open saved draft syllabi to preview the uploaded file, upload revisions, and submit them to the department head review queue."
         : IsFacultyReviewPage
             ? "Open your syllabus drafts and submissions to preview files, compare versions, upload revisions, and submit drafts for review."
-        : "Search Computer Engineering Department course syllabi based on your role and access permissions.";
+        : $"Search {currentUser?.DepartmentName ?? "Engineering"} Department course syllabi based on your role and access permissions.";
 
     [SupplyParameterFromQuery]
     public string? Status { get; set; }
@@ -207,7 +207,7 @@
             currentUser.Id);
 
         message = results.TotalCount == 0
-            ? "No Computer Engineering Department syllabi matched your search terms in your allowed scope."
+            ? $"No {currentUser?.DepartmentName ?? "Engineering"} Department syllabi matched your search terms in your allowed scope."
             : null;
     }
 

@@ -45,6 +45,7 @@ public class RegistrationApprovalService(
                 FullName = u.FullName,
                 Email = u.Email ?? string.Empty,
                 InstitutionalId = u.InstitutionalId,
+                DepartmentName = u.DepartmentName,
                 Role = u.Role,
                 Status = u.AccountStatus,
                 CreatedAtUtc = u.CreatedAtUtc
@@ -136,6 +137,7 @@ public class RegistrationApprovalService(
             FullName = user.FullName,
             Email = user.Email ?? string.Empty,
             InstitutionalId = user.InstitutionalId,
+            DepartmentName = user.DepartmentName,
             Role = user.Role,
             Status = user.AccountStatus,
             CreatedAtUtc = user.CreatedAtUtc

@@ -85,16 +85,15 @@ public static class SyllabusEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
 
-            var version = await dbContext.SyllabusVersions
-                .Include(v => v.SyllabusDocument)
+            var document = await dbContext.SyllabusDocuments
                 .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
 
-            if (version is null || version.SyllabusDocument is null) return Results.NotFound();
+            if (document is null) return Results.NotFound();
 
-            var hasAccess = await CanAccessSyllabusAsync(dbContext, version.SyllabusDocument, user, cancellationToken);
+            var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
 
-            return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: false, cancellationToken);
+            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: false, cancellationToken);
         })
         .WithName("ViewSyllabusVersion");
 
@@ -109,22 +108,21 @@ public static class SyllabusEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
 
-            var version = await dbContext.SyllabusVersions
-                .Include(v => v.SyllabusDocument)
+            var document = await dbContext.SyllabusDocuments
                 .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
                 
-            if (version is null || version.SyllabusDocument is null) return Results.NotFound();
+            if (document is null) return Results.NotFound();
 
-            var hasAccess = await CanAccessSyllabusAsync(dbContext, version.SyllabusDocument, user, cancellationToken);
+            var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
 
             if (!hasAccess) return Results.Forbid();
 
-            if (!await syllabusFileStorage.ExistsAsync(version.StoragePath, cancellationToken))
+            if (!await syllabusFileStorage.ExistsAsync(document.CurrentStoragePath, cancellationToken))
             {
                 return Results.NotFound();
             }
 
-            return await CreateFileResultAsync(syllabusFileStorage, version.StoragePath, version.FileName, asAttachment: true, cancellationToken);
+            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: true, cancellationToken);
         })
         .WithName("DownloadSyllabusVersion");
 
@@ -165,7 +163,6 @@ public static class SyllabusEndpoints
             if (user is null) return Results.Unauthorized();
 
             var document = await dbContext.SyllabusDocuments
-                .Include(d => d.Versions)
                 .FirstOrDefaultAsync(d => d.Id == syllabusDocumentId, cancellationToken);
             
             if (document is null) return Results.NotFound();
@@ -173,18 +170,18 @@ public static class SyllabusEndpoints
             var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
 
-            var versions = document.Versions
-                .OrderByDescending(v => v.VersionNumber)
-                .Select(v => new SyllabusVersionResponse
+            var versions = new List<SyllabusVersionResponse>
+            {
+                new SyllabusVersionResponse
                 {
-                    Id = v.Id,
-                    VersionNumber = v.VersionNumber,
-                    FileName = v.FileName,
-                    UploadedAtUtc = v.UploadedAtUtc,
-                    UploadedByName = v.UploadedByName,
-                    ChangeSummary = v.ChangeSummary
-                })
-                .ToList();
+                    Id = document.Id,
+                    VersionNumber = document.CurrentVersionNumber,
+                    FileName = document.CurrentFileName,
+                    UploadedAtUtc = document.SubmittedAtUtc ?? document.CreatedAtUtc,
+                    UploadedByName = document.InstructorId,
+                    ChangeSummary = document.LatestChangeSummary
+                }
+            };
 
             return Results.Ok(versions);
         })
@@ -233,7 +230,12 @@ public static class SyllabusEndpoints
     {
         if (user.Role != SRVS.Domain.Enums.UserRoleType.Student)
         {
-            return SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id);
+            return SyllabusAccessPolicy.CanDownload(document, user.Role, user.Id, user.DepartmentName);
+        }
+
+        if (!string.Equals(document.DepartmentName, user.DepartmentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
         }
 
         if (!document.IsPublished || document.Status != SRVS.Domain.Enums.SyllabusStatus.Approved)

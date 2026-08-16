@@ -16,6 +16,8 @@ public class ApplicationUser : IdentityUser
 		set => Id = value;
 	}
 
+	public string DepartmentName { get; set; } = "Computer Engineering";
+
 	public UserRoleType Role { get; set; } = UserRoleType.Student;
 
 	public UserAccountStatus AccountStatus { get; set; } = UserAccountStatus.PendingApproval;
