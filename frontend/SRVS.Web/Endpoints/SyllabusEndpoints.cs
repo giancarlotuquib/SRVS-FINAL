@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SRVS.Application.Abstractions;
 using SRVS.Application.Models;
@@ -9,6 +10,9 @@ using SRVS.Application.Services;
 using SRVS.Web.Data;
 using SRVS.Web.DTOs;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace SRVS.Web.Endpoints;
 
@@ -21,61 +25,67 @@ public static class SyllabusEndpoints
             .WithTags("Syllabi Downloads")
             .RequireAuthorization();
 
-        downloads.MapGet("/{syllabusDocumentId:guid}/view", async (
-            Guid syllabusDocumentId,
+        downloads.MapGet("/{syllabusDocumentId}/view", async (
+            string syllabusDocumentId,
             HttpContext httpContext,
+            ApplicationDbContext dbContext,
             ISyllabusSearchService syllabusSearchService,
             ISyllabusFileStorage syllabusFileStorage,
             UserManager<ApplicationUser> userManager,
             CancellationToken cancellationToken) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
-            if (user is null)
-            {
-                return Results.Unauthorized();
-            }
+            if (user is null) return Results.Unauthorized();
 
-            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.Id, cancellationToken);
-            if (document is null)
-            {
-                return Results.NotFound();
-            }
+            var document = await FindSyllabusByIdOr5DigitAsync(dbContext, syllabusDocumentId, cancellationToken);
+            if (document is null) return Results.NotFound(new ErrorResponse { Error = "Syllabus not found." });
 
-            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: false, cancellationToken);
+            var accessibleDoc = await syllabusSearchService.GetAccessibleDocumentAsync(document.Id, user.Role, user.Id, cancellationToken);
+            if (accessibleDoc is null) return Results.NotFound(new ErrorResponse { Error = "Access denied or syllabus not found." });
+
+            return await CreateFileResultAsync(syllabusFileStorage, accessibleDoc.CurrentStoragePath, accessibleDoc.CurrentFileName, asAttachment: false, cancellationToken);
         })
-        .WithName("ViewSyllabus");
+        .WithName("ViewSyllabus")
+        .WithSummary("View syllabus document inline")
+        .WithDescription("Displays the syllabus document file in browser. Accepts 5-digit document ID (e.g. 12345) or GUID.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status401Unauthorized);
 
-        downloads.MapGet("/{syllabusDocumentId:guid}/download", async (
-            Guid syllabusDocumentId,
+        downloads.MapGet("/{syllabusDocumentId}/download", async (
+            string syllabusDocumentId,
             HttpContext httpContext,
+            ApplicationDbContext dbContext,
             ISyllabusSearchService syllabusSearchService,
             ISyllabusFileStorage syllabusFileStorage,
             UserManager<ApplicationUser> userManager,
             CancellationToken cancellationToken) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
-            if (user is null)
+            if (user is null) return Results.Unauthorized();
+
+            var document = await FindSyllabusByIdOr5DigitAsync(dbContext, syllabusDocumentId, cancellationToken);
+            if (document is null) return Results.NotFound(new ErrorResponse { Error = "Syllabus not found." });
+
+            var accessibleDoc = await syllabusSearchService.GetAccessibleDocumentAsync(document.Id, user.Role, user.Id, cancellationToken);
+            if (accessibleDoc is null) return Results.NotFound(new ErrorResponse { Error = "Access denied or syllabus not found." });
+
+            if (!await syllabusFileStorage.ExistsAsync(accessibleDoc.CurrentStoragePath, cancellationToken))
             {
-                return Results.Unauthorized();
+                return Results.NotFound(new ErrorResponse { Error = "Syllabus storage file missing." });
             }
 
-            var document = await syllabusSearchService.GetAccessibleDocumentAsync(syllabusDocumentId, user.Role, user.Id, cancellationToken);
-            if (document is null)
-            {
-                return Results.NotFound();
-            }
-
-            if (!await syllabusFileStorage.ExistsAsync(document.CurrentStoragePath, cancellationToken))
-            {
-                return Results.NotFound();
-            }
-
-            return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: true, cancellationToken);
+            return await CreateFileResultAsync(syllabusFileStorage, accessibleDoc.CurrentStoragePath, accessibleDoc.CurrentFileName, asAttachment: true, cancellationToken);
         })
-        .WithName("DownloadSyllabus");
+        .WithName("DownloadSyllabus")
+        .WithSummary("Download syllabus file")
+        .WithDescription("Downloads syllabus document file. Accepts 5-digit document ID (e.g. 12345) or GUID.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status401Unauthorized);
 
-        downloads.MapGet("/versions/{versionId:guid}/view", async (
-            Guid versionId,
+        downloads.MapGet("/versions/{versionId}/view", async (
+            string versionId,
             HttpContext httpContext,
             ApplicationDbContext dbContext,
             ISyllabusFileStorage syllabusFileStorage,
@@ -85,20 +95,24 @@ public static class SyllabusEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
 
-            var document = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
-
-            if (document is null) return Results.NotFound();
+            var document = await FindSyllabusByIdOr5DigitAsync(dbContext, versionId, cancellationToken);
+            if (document is null) return Results.NotFound(new ErrorResponse { Error = "Syllabus version not found." });
 
             var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
 
             return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: false, cancellationToken);
         })
-        .WithName("ViewSyllabusVersion");
+        .WithName("ViewSyllabusVersion")
+        .WithSummary("View syllabus version inline")
+        .WithDescription("Views specific version of a syllabus document. Accepts 5-digit document ID (e.g. 12345) or GUID.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
-        downloads.MapGet("/versions/{versionId:guid}/download", async (
-            Guid versionId,
+        downloads.MapGet("/versions/{versionId}/download", async (
+            string versionId,
             HttpContext httpContext,
             ApplicationDbContext dbContext,
             ISyllabusFileStorage syllabusFileStorage,
@@ -108,23 +122,26 @@ public static class SyllabusEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
 
-            var document = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
-                
-            if (document is null) return Results.NotFound();
+            var document = await FindSyllabusByIdOr5DigitAsync(dbContext, versionId, cancellationToken);
+            if (document is null) return Results.NotFound(new ErrorResponse { Error = "Syllabus version not found." });
 
             var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
-
             if (!hasAccess) return Results.Forbid();
 
             if (!await syllabusFileStorage.ExistsAsync(document.CurrentStoragePath, cancellationToken))
             {
-                return Results.NotFound();
+                return Results.NotFound(new ErrorResponse { Error = "Syllabus version file missing." });
             }
 
             return await CreateFileResultAsync(syllabusFileStorage, document.CurrentStoragePath, document.CurrentFileName, asAttachment: true, cancellationToken);
         })
-        .WithName("DownloadSyllabusVersion");
+        .WithName("DownloadSyllabusVersion")
+        .WithSummary("Download syllabus version file")
+        .WithDescription("Downloads specific version of a syllabus document. Accepts 5-digit document ID (e.g. 12345) or GUID.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         // API endpoints
         var api = app.MapGroup("/api/syllabi")
@@ -132,8 +149,8 @@ public static class SyllabusEndpoints
             .RequireAuthorization();
 
         api.MapGet("/search", async (
-            string? term,
-            int maxResults,
+            [FromQuery] string? term,
+            [FromQuery] int maxResults,
             HttpContext httpContext,
             UserManager<ApplicationUser> userManager,
             ISyllabusSearchService syllabusSearchService,
@@ -148,12 +165,15 @@ public static class SyllabusEndpoints
             var results = await syllabusSearchService.SearchAsync(new SyllabusSearchRequest(term, null, maxResults <= 0 ? 100 : maxResults), user.Role, user.Id, cancellationToken);
             return Results.Ok(results);
         })
+        .WithName("SearchSyllabi")
+        .WithSummary("Search syllabus repository")
+        .WithDescription("Searches syllabi accessible to the logged-in user by keyword, course code, or course title.")
         .Produces<SyllabusSearchResults>(StatusCodes.Status200OK)
-        .WithName("SearchSyllabi");
+        .Produces(StatusCodes.Status401Unauthorized);
 
-        // Get syllabus versions
-        api.MapGet("/{syllabusDocumentId:guid}/versions", async (
-            Guid syllabusDocumentId,
+        // Get syllabus versions by GUID or 5-digit DocumentId
+        api.MapGet("/{syllabusDocumentId}/versions", async (
+            string syllabusDocumentId,
             HttpContext httpContext,
             ApplicationDbContext dbContext,
             UserManager<ApplicationUser> userManager,
@@ -162,10 +182,8 @@ public static class SyllabusEndpoints
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
 
-            var document = await dbContext.SyllabusDocuments
-                .FirstOrDefaultAsync(d => d.Id == syllabusDocumentId, cancellationToken);
-            
-            if (document is null) return Results.NotFound();
+            var document = await FindSyllabusByIdOr5DigitAsync(dbContext, syllabusDocumentId, cancellationToken);
+            if (document is null) return Results.NotFound(new ErrorResponse { Error = "Syllabus document not found." });
 
             var hasAccess = await CanAccessSyllabusAsync(dbContext, document, user, cancellationToken);
             if (!hasAccess) return Results.Forbid();
@@ -185,10 +203,30 @@ public static class SyllabusEndpoints
 
             return Results.Ok(versions);
         })
+        .WithName("GetSyllabusVersions")
+        .WithSummary("Get syllabus version history")
+        .WithDescription("Retrieves version history list for a syllabus document. Accepts 5-digit document ID (e.g. 12345) or GUID.")
         .Produces<List<SyllabusVersionResponse>>(StatusCodes.Status200OK)
-        .WithName("GetSyllabusVersions");
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         return app;
+    }
+
+    private static async Task<SyllabusDocument?> FindSyllabusByIdOr5DigitAsync(ApplicationDbContext dbContext, string id, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        var trimmed = id.Trim();
+        if (Guid.TryParse(trimmed, out var guid))
+        {
+            return await dbContext.SyllabusDocuments.FirstOrDefaultAsync(d => d.Id == guid, cancellationToken);
+        }
+
+        var allDocs = await dbContext.SyllabusDocuments.ToListAsync(cancellationToken);
+        return allDocs.FirstOrDefault(s =>
+            s.Id.ToString().Equals(trimmed, StringComparison.OrdinalIgnoreCase) ||
+            Math.Abs(s.Id.GetHashCode() % 90000 + 10000).ToString("D5").Equals(trimmed, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<IResult> CreateFileResultAsync(
@@ -200,7 +238,7 @@ public static class SyllabusEndpoints
     {
         if (!await syllabusFileStorage.ExistsAsync(storagePath, cancellationToken))
         {
-            return Results.NotFound();
+            return Results.NotFound(new ErrorResponse { Error = "Syllabus document file not found." });
         }
 
         var memoryStream = new MemoryStream();

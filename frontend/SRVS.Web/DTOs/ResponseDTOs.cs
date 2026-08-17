@@ -1,4 +1,5 @@
 using SRVS.Domain.Enums;
+using System;
 
 namespace SRVS.Web.DTOs;
 
@@ -67,6 +68,7 @@ public class ErrorResponse
 public class SyllabusVersionResponse
 {
     public Guid Id { get; set; }
+    public string DocumentId => Math.Abs(Id.GetHashCode() % 90000 + 10000).ToString("D5");
     public int VersionNumber { get; set; }
     public string FileName { get; set; } = string.Empty;
     public DateTimeOffset UploadedAtUtc { get; set; }
@@ -80,6 +82,7 @@ public class ApproveRejectResponse
 {
     public string Message { get; set; } = string.Empty;
     public Guid SyllabusId { get; set; }
+    public string DocumentId => Math.Abs(SyllabusId.GetHashCode() % 90000 + 10000).ToString("D5");
 }
 
 public class BulkAssignResponse

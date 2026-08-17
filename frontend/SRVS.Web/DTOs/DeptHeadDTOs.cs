@@ -12,6 +12,7 @@ public class StudentResponse
     public string SchoolId { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public Guid? AssignedSyllabusId { get; set; }
+    public string? AssignedDocumentId => AssignedSyllabusId.HasValue ? Math.Abs(AssignedSyllabusId.Value.GetHashCode() % 90000 + 10000).ToString("D5") : null;
     public string? AssignedSyllabusTitle { get; set; }
     public string Status { get; set; } = string.Empty; // "Assigned" or "Unassigned"
 }
@@ -19,6 +20,7 @@ public class StudentResponse
 public class SyllabusListResponse
 {
     public Guid Id { get; set; }
+    public string DocumentId => Math.Abs(Id.GetHashCode() % 90000 + 10000).ToString("D5");
     public string SubjectCode { get; set; } = string.Empty;
     public string SubjectTitle { get; set; } = string.Empty;
     public string FacultyName { get; set; } = string.Empty;
@@ -31,13 +33,13 @@ public class SyllabusListResponse
 public class AssignRequest
 {
     public string StudentId { get; set; } = string.Empty;
-    public Guid SyllabusId { get; set; }
+    public string SyllabusId { get; set; } = string.Empty;
 }
 
 public class BulkAssignRequest
 {
     public List<string> StudentIds { get; set; } = new();
-    public Guid SyllabusId { get; set; }
+    public string SyllabusId { get; set; } = string.Empty;
 }
 
 public class AssignmentResponse
@@ -54,6 +56,7 @@ public class AssignmentResponse
 public class SyllabusPendingResponse
 {
     public Guid Id { get; set; }
+    public string DocumentId => Math.Abs(Id.GetHashCode() % 90000 + 10000).ToString("D5");
     public string CourseCode { get; set; } = string.Empty;
     public string CourseTitle { get; set; } = string.Empty;
     public string FacultyName { get; set; } = string.Empty;

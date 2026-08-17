@@ -7,6 +7,7 @@ using SRVS.Domain.Enums;
 using SRVS.Domain.Entities;
 using SRVS.Web.Data;
 using SyllabusRepository.DTOs;
+using SRVS.Web.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -19,6 +20,7 @@ public static class AuthEndpoints
     {
         var authGroup = app.MapGroup("/api/auth").WithTags("Auth").DisableAntiforgery();
 
+        // 1. Account Login (Form based)
         app.MapPost("/Account/Login", async ([FromForm] LoginRequest request, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext dbContext) =>
         {
             if (string.IsNullOrWhiteSpace(request.SchoolId) || string.IsNullOrWhiteSpace(request.Password))
@@ -61,7 +63,6 @@ public static class AuthEndpoints
                 user.LastLoginAtUtc = DateTimeOffset.UtcNow;
                 await userManager.UpdateAsync(user);
 
-                // Ensure the user is fully signed-in so the auth cookie is issued in this response.
                 await signInManager.SignInAsync(user, isPersistent: false);
 
                 dbContext.AuditLogEntries.Add(new AuditLogEntry
@@ -101,43 +102,42 @@ public static class AuthEndpoints
             }
 
             return Results.Redirect("/Account/Login?error=" + Uri.EscapeDataString("Invalid School ID or password."));
-        }).DisableAntiforgery();
+        })
+        .DisableAntiforgery()
+        .ExcludeFromDescription();
 
-        // Register
-        authGroup.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
+        // 2. Register endpoint (API)
+        authGroup.MapPost("/register", async ([FromBody] RegisterRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
-            // Normalise SchoolId: trim whitespace. The validator enforces digit-only input.
             request.SchoolId = request.SchoolId?.Trim() ?? string.Empty;
 
-            // Do not allow Admin self-registration
             if (request.Role == UserRoleType.Admin)
             {
-                return Results.BadRequest(new { error = "Admin accounts cannot be self-registered." });
+                return Results.BadRequest(new ErrorResponse { Error = "Admin accounts cannot be self-registered." });
             }
 
             if (!request.Role.HasValue || request.Role.Value is not (UserRoleType.DepartmentHead or UserRoleType.Educator or UserRoleType.Student))
             {
-                return Results.BadRequest(new { error = "Invalid role selected." });
+                return Results.BadRequest(new ErrorResponse { Error = "Invalid role selected." });
             }
 
             if (!InstitutionalIdRules.IsValid(request.Role.Value, request.SchoolId))
             {
-                return Results.BadRequest(new { error = GetSchoolIdValidationMessage(request.Role.Value) });
+                return Results.BadRequest(new ErrorResponse { Error = GetSchoolIdValidationMessage(request.Role.Value) });
             }
 
             var normalizedSchoolId = request.SchoolId ?? string.Empty;
 
-            // Check for existing InstitutionalId (SchoolId)
             var existingUserById = await userManager.Users.FirstOrDefaultAsync(u => u.Id == normalizedSchoolId);
             if (existingUserById != null)
             {
-                return Results.Conflict(new { error = "A user with this School ID already exists." });
+                return Results.Conflict(new ErrorResponse { Error = "A user with this School ID already exists." });
             }
 
             var existingUserByEmail = await userManager.FindByEmailAsync(request.Email);
             if (existingUserByEmail != null)
             {
-                return Results.Conflict(new { error = "A user with this email already exists." });
+                return Results.Conflict(new ErrorResponse { Error = "A user with this email already exists." });
             }
 
             var user = new ApplicationUser
@@ -169,22 +169,25 @@ public static class AuthEndpoints
                 });
                 await dbContext.SaveChangesAsync();
 
-                return Results.Ok(new { message = "Account created successfully. Your registration is pending approval." });
+                return Results.Ok(new MessageResponse { Message = "Account created successfully. Your registration is pending approval." });
             }
 
             return Results.BadRequest(result.Errors);
-        });
+        })
+        .WithName("RegisterUser")
+        .WithSummary("Register new user account")
+        .WithDescription("Submits a self-registration request for Student, Faculty (Educator), or Department Head roles.")
+        .Produces<MessageResponse>(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+        .Produces<ErrorResponse>(StatusCodes.Status409Conflict);
 
-
-
+        // 3. API Login endpoint
         authGroup.MapPost("/login", async ([FromBody] LoginRequest request, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext dbContext) =>
         {
-            // Model validation attributes ensure required fields are present.
             if (string.IsNullOrWhiteSpace(request.SchoolId) || string.IsNullOrWhiteSpace(request.Password))
             {
-                return Results.BadRequest(new { error = "SchoolId and Password are required." });
+                return Results.BadRequest(new ErrorResponse { Error = "SchoolId and Password are required." });
             }
-
 
             var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == request.SchoolId);
             if (user == null)
@@ -212,7 +215,7 @@ public static class AuthEndpoints
                     EntityId = user.Id
                 });
                 await dbContext.SaveChangesAsync();
-                return Results.Json(new { error = "Account is not active." }, statusCode: 403);
+                return Results.Json(new ErrorResponse { Error = "Account is not active." }, statusCode: 403);
             }
 
             var signInResult = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);
@@ -232,7 +235,14 @@ public static class AuthEndpoints
                 });
                 await dbContext.SaveChangesAsync();
 
-                return Results.Ok(new { message = "Signed in." });
+                return Results.Ok(new LoginResponse
+                {
+                    Message = "Signed in successfully.",
+                    Id = user.Id,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    Role = user.Role
+                });
             }
 
             dbContext.AuditLogEntries.Add(new AuditLogEntry
@@ -247,11 +257,17 @@ public static class AuthEndpoints
             });
             await dbContext.SaveChangesAsync();
             return Results.Unauthorized();
-        });
-                
+        })
+        .WithName("ApiLogin")
+        .WithSummary("Login to API")
+        .WithDescription("Authenticates user using School ID and password, establishing an authenticated session cookie.")
+        .Produces<LoginResponse>(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces<ErrorResponse>(StatusCodes.Status403Forbidden);
 
-        // Reset password custom logic
-        authGroup.MapPost("/reset-password", async (ResetPasswordRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
+        // 4. Reset password
+        authGroup.MapPost("/reset-password", async ([FromBody] ResetPasswordRequest request, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) =>
         {
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user is null)
@@ -263,7 +279,7 @@ public static class AuthEndpoints
                     Description = $"Failed password reset request: email '{request.Email}' not found."
                 });
                 await dbContext.SaveChangesAsync();
-                return Results.NotFound(new { error = "Email not found." });
+                return Results.NotFound(new ErrorResponse { Error = "Email not found." });
             }
 
             var token = await userManager.GeneratePasswordResetTokenAsync(user);
@@ -282,7 +298,7 @@ public static class AuthEndpoints
                     EntityId = user.Id
                 });
                 await dbContext.SaveChangesAsync();
-                return Results.Ok(new { message = "Password changed successfully." });
+                return Results.Ok(new MessageResponse { Message = "Password changed successfully." });
             }
 
             dbContext.AuditLogEntries.Add(new AuditLogEntry
@@ -297,61 +313,83 @@ public static class AuthEndpoints
             });
             await dbContext.SaveChangesAsync();
             return Results.BadRequest(result.Errors);
-        });
+        })
+        .WithName("ResetPassword")
+        .WithSummary("Reset user password")
+        .WithDescription("Resets password for the user matching the provided email address.")
+        .Produces<MessageResponse>(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+        .Produces<ErrorResponse>(StatusCodes.Status404NotFound);
 
-        // Refresh token endpoint
-        authGroup.MapPost("/refresh-token", (RefreshTokenRequest request) =>
+        // 5. Refresh token
+        authGroup.MapPost("/refresh-token", ([FromBody] RefreshTokenRequest request) =>
         {
             if (string.IsNullOrWhiteSpace(request.RefreshToken))
             {
-                return Results.BadRequest(new { error = "Refresh token is required." });
+                return Results.BadRequest(new ErrorResponse { Error = "Refresh token is required." });
             }
             return Results.Ok(new { token = request.RefreshToken, expiresAt = DateTimeOffset.UtcNow.AddHours(24) });
         })
+        .WithName("RefreshToken")
+        .WithSummary("Refresh authentication token")
         .Produces<object>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status400BadRequest);
+        .Produces<ErrorResponse>(StatusCodes.Status400BadRequest);
 
-        // Logout endpoint
+        // 6. Logout endpoint
         authGroup.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
         {
             await signInManager.SignOutAsync();
-            return Results.Ok(new { message = "Signed out successfully." });
+            return Results.Ok(new MessageResponse { Message = "Signed out successfully." });
         })
-        .Produces<object>(StatusCodes.Status200OK);
+        .WithName("Logout")
+        .WithSummary("Sign out current user")
+        .Produces<MessageResponse>(StatusCodes.Status200OK);
 
-        // Forgot password endpoint
-        authGroup.MapPost("/forgot-password", async (ForgotPasswordRequest request, UserManager<ApplicationUser> userManager) =>
+        // 7. Forgot password endpoint
+        authGroup.MapPost("/forgot-password", async ([FromBody] ForgotPasswordRequest request, UserManager<ApplicationUser> userManager) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email))
             {
-                return Results.BadRequest(new { error = "Email address is required." });
+                return Results.BadRequest(new ErrorResponse { Error = "Email address is required." });
             }
 
             var user = await userManager.FindByEmailAsync(request.Email);
-            if (user is null)
-            {
-                return Results.Ok(new { message = "If your email is registered, a password reset link has been sent." });
-            }
-
-            return Results.Ok(new { message = "If your email is registered, a password reset link has been sent." });
+            return Results.Ok(new MessageResponse { Message = "If your email is registered, a password reset link has been sent." });
         })
-        .Produces<object>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status400BadRequest);
+        .WithName("ForgotPassword")
+        .WithSummary("Request password reset email")
+        .Produces<MessageResponse>(StatusCodes.Status200OK)
+        .Produces<ErrorResponse>(StatusCodes.Status400BadRequest);
 
-        // Validate token endpoint
+        // 8. Validate token endpoint
         authGroup.MapGet("/validate-token", (HttpContext httpContext) =>
         {
             return Results.Ok(new { valid = httpContext.User.Identity?.IsAuthenticated ?? false });
         })
+        .WithName("ValidateToken")
+        .WithSummary("Validate active session")
         .Produces<object>(StatusCodes.Status200OK);
 
-        // Get current user (me)
+        // 9. Get current user profile (me)
         authGroup.MapGet("/me", async (HttpContext httpContext, UserManager<ApplicationUser> userManager) =>
         {
             var user = await userManager.GetUserAsync(httpContext.User);
             if (user is null) return Results.Unauthorized();
-            return Results.Ok(new { user.Id, user.Email, user.FullName, user.InstitutionalId, user.Role, user.AccountStatus });
-        }).RequireAuthorization();
+            return Results.Ok(new AuthUserResponse
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = user.FullName,
+                SchoolId = user.Id,
+                Role = user.Role,
+                AccountStatus = user.AccountStatus
+            });
+        })
+        .RequireAuthorization()
+        .WithName("GetCurrentUser")
+        .WithSummary("Get authenticated user info")
+        .Produces<AuthUserResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized);
     }
 
     private static string GetSchoolIdValidationMessage(UserRoleType role) => role switch

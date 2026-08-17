@@ -34,6 +34,16 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "SRVS API", Version = "v1" });
 
+    c.SchemaFilter<SRVS.Web.Swagger.SwaggerExampleSchemaFilter>();
+    c.OperationFilter<SRVS.Web.Swagger.SwaggerParameterOperationFilter>();
+    c.OperationFilter<SRVS.Web.Swagger.SwaggerFileUploadOperationFilter>();
+
+    c.MapType<IFormFile>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
+    });
+
     // Map enums to string schemas so Swagger shows readable values
     c.UseAllOfForInheritance();
     

@@ -34,6 +34,16 @@
             <param name="targetStatus">The target status</param>
             <returns>True if the action is allowed, false otherwise</returns>
         </member>
+        <member name="T:SRVS.Web.Swagger.SwaggerExampleSchemaFilter">
+            <summary>
+            Provides realistic example values for OpenAPI schemas in Swagger UI.
+            </summary>
+        </member>
+        <member name="T:SRVS.Web.Swagger.SwaggerParameterOperationFilter">
+            <summary>
+            Enhances parameter documentation and examples for API endpoints in Swagger UI.
+            </summary>
+        </member>
         <member name="T:Program">
             <summary>
             Auto-generated public partial Program class for top-level statement apps.
