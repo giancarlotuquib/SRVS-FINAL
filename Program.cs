@@ -4,11 +4,12 @@ Console.WriteLine("Starting SRVS web project...");
 
 var webProjectPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "frontend", "SRVS.Web"));
 StopStaleWebProcesses(webProjectPath);
+RemoveStaleStaticWebAssetsManifest(webProjectPath);
 
 var psi = new ProcessStartInfo
 {
     FileName = "dotnet",
-    Arguments = "run --no-restore --project frontend/SRVS.Web --urls http://localhost:5300",
+    Arguments = "run --no-cache --project frontend/SRVS.Web --urls http://localhost:5300",
     UseShellExecute = false,
     RedirectStandardOutput = true,
     RedirectStandardError = true,
@@ -61,5 +62,34 @@ static void StopStaleWebProcesses(string webProjectPath)
         {
             process.Dispose();
         }
+    }
+}
+
+static void RemoveStaleStaticWebAssetsManifest(string webProjectPath)
+{
+    var manifestPath = Path.Combine(webProjectPath, "bin", "Debug", "net10.0", "SRVS.Web.staticwebassets.runtime.json");
+    if (!File.Exists(manifestPath))
+    {
+        return;
+    }
+
+    try
+    {
+        var manifest = File.ReadAllText(manifestPath);
+        if (manifest.Contains(webProjectPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Console.WriteLine("Removing stale generated static web assets manifest...");
+        File.Delete(manifestPath);
+    }
+    catch (IOException ex)
+    {
+        Console.WriteLine($"Skipped stale manifest cleanup: {ex.Message}");
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        Console.WriteLine($"Skipped stale manifest cleanup: {ex.Message}");
     }
 }

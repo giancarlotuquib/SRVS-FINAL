@@ -64,11 +64,10 @@ builder.Services.AddSwaggerGen(c =>
         Enum = Enum.GetNames<SRVS.Domain.Enums.SyllabusStatus>().Select(n => (Microsoft.OpenApi.Any.IOpenApiAny)new Microsoft.OpenApi.Any.OpenApiString(n)).ToList()
     });
     
-    // Exclude reports and non-api syllabus downloads
+    // Include API endpoints only. Non-API syllabus download routes stay out of Swagger.
     c.DocInclusionPredicate((docName, apiDesc) =>
         apiDesc.RelativePath != null &&
-        apiDesc.RelativePath.StartsWith("api/", StringComparison.OrdinalIgnoreCase) &&
-        !apiDesc.RelativePath.StartsWith("api/reports", StringComparison.OrdinalIgnoreCase));
+        apiDesc.RelativePath.StartsWith("api/", StringComparison.OrdinalIgnoreCase));
 
     // Configure cookie authentication description for the UI
     c.AddSecurityDefinition("CookieAuth", new OpenApiSecurityScheme

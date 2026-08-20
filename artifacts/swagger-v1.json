@@ -1,0 +1,2593 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SRVS API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get all users",
+        "description": "Retrieves a complete list of registered users in the system.",
+        "operationId": "GetAdminUsers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/activate": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Activate user account",
+        "description": "Activates a user account by setting its status to Active.",
+        "operationId": "ActivateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required target user School ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/deactivate": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Deactivate user account",
+        "description": "Deactivates a user account by setting its status to Suspended.",
+        "operationId": "DeactivateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required target user School ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Delete user account",
+        "description": "Sets user account status to Deleted.",
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required target user School ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/registrations/pending": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get pending user registrations",
+        "description": "Retrieves pending self-registration requests requiring admin approval.",
+        "operationId": "GetPendingRegistrations",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Optional search keyword for pending registrations. Matches full name, email, or School ID.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Jane"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistrationResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/registrations/all": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get all registration requests",
+        "description": "Retrieves all registration requests regardless of approval status.",
+        "operationId": "GetAllRegistrations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistrationResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/registrations/{id}/approve": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Approve registration",
+        "description": "Approves a pending registration, enabling the user account.",
+        "operationId": "ApproveRegistration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required registration record ID, which is the user's School ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/registrations/{id}/reject": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Reject registration",
+        "description": "Rejects a pending user registration request.",
+        "operationId": "RejectRegistration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required registration record ID, which is the user's School ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register new user account",
+        "description": "Submits a self-registration request for Student, Faculty (Educator), or Department Head roles.",
+        "operationId": "RegisterUser",
+        "requestBody": {
+          "description": "Required JSON body containing self-registration details.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login to API",
+        "description": "Authenticates user using School ID and password, establishing an authenticated session cookie.",
+        "operationId": "ApiLogin",
+        "requestBody": {
+          "description": "Required JSON body containing school ID and password.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset user password",
+        "description": "Resets password for the user matching the provided email address.",
+        "operationId": "ResetPassword",
+        "requestBody": {
+          "description": "Required JSON body containing email and new password values.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh authentication token",
+        "operationId": "RefreshToken",
+        "requestBody": {
+          "description": "Required JSON body containing the refresh token value.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out current user",
+        "operationId": "Logout",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request password reset email",
+        "operationId": "ForgotPassword",
+        "requestBody": {
+          "description": "Required JSON body containing the account email address.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/validate-token": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Validate active session",
+        "operationId": "ValidateToken",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get authenticated user info",
+        "operationId": "GetCurrentUser",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/depthead/students": {
+      "get": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Get department students",
+        "description": "Retrieves all active student accounts along with their current syllabus assignment status.",
+        "operationId": "GetDeptHeadStudents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StudentResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/syllabi": {
+      "get": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Get department syllabi",
+        "description": "Retrieves all department syllabi, optionally filtered by status (0=Draft, 1=Submitted, 2=Approved, 3=Rejected).",
+        "operationId": "GetDeptHeadSyllabi",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Optional syllabus status filter. Values: 0 = Draft, 1 = Submitted, 2 = Approved, 3 = Rejected.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyllabusListResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Create and insert a syllabus",
+        "description": "Allows Department Head to insert or create an approved syllabus directly into the department repository.",
+        "operationId": "CreateDeptHeadSyllabus",
+        "requestBody": {
+          "description": "Required JSON body containing syllabus metadata.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSyllabusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/syllabi/upload": {
+      "post": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Upload and insert a syllabus document file",
+        "description": "Allows Department Head to upload a syllabus PDF/DOCX file and insert an approved syllabus directly.",
+        "operationId": "UploadDeptHeadSyllabus",
+        "requestBody": {
+          "description": "Upload syllabus file along with metadata",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadSyllabusFormRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/syllabi/pending": {
+      "get": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Get pending syllabi for review",
+        "description": "Retrieves a summary and list of pending syllabus submissions awaiting review by the Department Head.",
+        "operationId": "GetDeptHeadPendingSyllabi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/syllabi/{syllabusId}/approve": {
+      "put": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Approve a submitted syllabus",
+        "description": "Approves a faculty-submitted syllabus and publishes it to department students. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "ApproveSyllabus",
+        "parameters": [
+          {
+            "name": "syllabusId",
+            "in": "path",
+            "description": "Required syllabus identifier in the department. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "requestBody": {
+          "description": "Optional JSON body. When provided, only remarks is read.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSyllabusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproveRejectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/syllabi/{syllabusId}/reject": {
+      "put": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Reject a submitted syllabus",
+        "description": "Rejects a faculty-submitted syllabus with reviewer feedback. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "RejectSyllabus",
+        "parameters": [
+          {
+            "name": "syllabusId",
+            "in": "path",
+            "description": "Required syllabus identifier in the department. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "requestBody": {
+          "description": "Required JSON body containing reviewer remarks.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "remarks"
+                ],
+                "type": "object",
+                "properties": {
+                  "remarks": {
+                    "type": "string",
+                    "description": "Required reviewer feedback explaining why the syllabus is rejected.",
+                    "example": "Please revise the course outcomes and assessment mapping."
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproveRejectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/assign": {
+      "post": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Assign syllabus to a student",
+        "description": "Assigns an approved syllabus to a specific student account. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "AssignSyllabusToStudent",
+        "requestBody": {
+          "description": "Required JSON body containing studentId and syllabusId.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/depthead/assign/bulk": {
+      "post": {
+        "tags": [
+          "DeptHead"
+        ],
+        "summary": "Bulk assign syllabus to students",
+        "description": "Assigns an approved syllabus to multiple students simultaneously. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "BulkAssignSyllabusToStudents",
+        "requestBody": {
+          "description": "Required JSON body containing studentIds and syllabusId.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAssignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkAssignResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/faculty/syllabi": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Get faculty syllabi",
+        "description": "Retrieves all syllabus documents created by or assigned to the logged-in faculty member.",
+        "operationId": "GetFacultySyllabi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyllabusDetailResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Create/Insert new syllabus draft (JSON)",
+        "description": "Allows faculty to create or insert a new draft syllabus record.",
+        "operationId": "CreateFacultySyllabus",
+        "requestBody": {
+          "description": "Required JSON body containing syllabus metadata.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSyllabusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/faculty/syllabi/upload": {
+      "post": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Upload and insert syllabus document file",
+        "description": "Allows faculty member to upload a syllabus PDF/DOCX document file and create a draft syllabus record.",
+        "operationId": "UploadFacultySyllabus",
+        "requestBody": {
+          "description": "Upload syllabus file along with metadata",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadSyllabusFormRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/faculty/syllabi/{id}": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Get faculty syllabus by ID",
+        "description": "Retrieves single syllabus details owned by faculty member. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "GetFacultySyllabusById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required syllabus identifier owned by the authenticated faculty member. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Update syllabus details",
+        "description": "Updates syllabus details for a draft or rejected syllabus. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "UpdateFacultySyllabus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required syllabus identifier owned by the authenticated faculty member. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "requestBody": {
+          "description": "Required JSON body containing only the syllabus metadata fields to update.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSyllabusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Delete draft syllabus",
+        "description": "Deletes a draft or rejected syllabus document. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "DeleteFacultySyllabus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required syllabus identifier owned by the authenticated faculty member. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/faculty/syllabi/{id}/submit": {
+      "post": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Submit syllabus for review",
+        "description": "Submits a draft syllabus to Department Head for review. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "SubmitSyllabusForReview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Required syllabus identifier owned by the authenticated faculty member. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "GetHealth",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/reports/enrollment": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "GetEnrollmentReport",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/reports/performance": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "GetPerformanceReport",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/syllabi/search": {
+      "get": {
+        "tags": [
+          "Syllabi"
+        ],
+        "summary": "Search syllabus repository",
+        "description": "Searches syllabi accessible to the logged-in user by keyword, course code, or course title.",
+        "operationId": "SearchSyllabi",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "description": "Optional search keyword for accessible syllabus course code or title.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "CPE"
+          },
+          {
+            "name": "maxResults",
+            "in": "query",
+            "description": "Optional maximum number of syllabus search results. Values less than or equal to 0 are treated as 100.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusSearchResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/syllabi/{syllabusDocumentId}/versions": {
+      "get": {
+        "tags": [
+          "Syllabi"
+        ],
+        "summary": "Get syllabus version history",
+        "description": "Retrieves version history list for a syllabus document. Accepts 5-digit document ID (e.g. 12345) or GUID.",
+        "operationId": "GetSyllabusVersions",
+        "parameters": [
+          {
+            "name": "syllabusDocumentId",
+            "in": "path",
+            "description": "Required syllabus document identifier. Accepts the 5-digit document ID or GUID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyllabusVersionResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "12345"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "jane.doe@edu.ph"
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane"
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Doe"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "schoolId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering"
+          },
+          "role": {
+            "enum": [
+              "Admin",
+              "DepartmentHead",
+              "Educator",
+              "Student"
+            ],
+            "type": "string"
+          },
+          "accountStatus": {
+            "enum": [
+              "PendingApproval",
+              "Active",
+              "Suspended",
+              "Rejected",
+              "Deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApproveRejectResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "syllabusId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "documentId": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "example": "12345"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssignRequest": {
+        "required": [
+          "studentId",
+          "syllabusId"
+        ],
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "description": "Required active student School ID.",
+            "nullable": true,
+            "example": "2026000001"
+          },
+          "syllabusId": {
+            "type": "string",
+            "description": "Required syllabus identifier. Accepts the 5-digit document ID or GUID.",
+            "nullable": true,
+            "example": "12345"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssignmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "studentFullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "schoolId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "syllabusTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "subjectCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE 101"
+          },
+          "assignedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assignedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "12345"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "jane.doe@edu.ph"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "schoolId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "role": {
+            "enum": [
+              "Admin",
+              "DepartmentHead",
+              "Educator",
+              "Student"
+            ],
+            "type": "string"
+          },
+          "accountStatus": {
+            "enum": [
+              "PendingApproval",
+              "Active",
+              "Suspended",
+              "Rejected",
+              "Deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BulkAssignRequest": {
+        "required": [
+          "studentIds",
+          "syllabusId"
+        ],
+        "type": "object",
+        "properties": {
+          "studentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Required list of active student School IDs. At least one ID is required.",
+            "nullable": true
+          },
+          "syllabusId": {
+            "type": "string",
+            "description": "Required syllabus identifier. Accepts the 5-digit document ID or GUID.",
+            "nullable": true,
+            "example": "12345"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BulkAssignResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateSyllabusRequest": {
+        "required": [
+          "academicYear",
+          "courseCode",
+          "courseTitle",
+          "semester"
+        ],
+        "type": "object",
+        "properties": {
+          "courseCode": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required course or subject code for the syllabus.",
+            "example": "CPE 101"
+          },
+          "courseTitle": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required course or subject title for the syllabus.",
+            "example": "Computer Engineering Systems"
+          },
+          "academicYear": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required academic year. The handler defaults blank values to 2025-2026.",
+            "example": "2025-2026"
+          },
+          "semester": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required semester. The handler defaults blank values to First Semester.",
+            "example": "First Semester"
+          },
+          "instructorId": {
+            "type": "string",
+            "description": "Optional instructor School ID. Defaults to the authenticated user when omitted or blank.",
+            "nullable": true,
+            "example": "10001"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "Optional stored/display file name. Defaults to a course-code syllabus file name.",
+            "nullable": true,
+            "example": "CPE101_Syllabus.pdf"
+          },
+          "changeSummary": {
+            "type": "string",
+            "description": "Optional change summary. Currently accepted for metadata compatibility.",
+            "nullable": true,
+            "example": "Initial syllabus draft creation."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ForgotPasswordRequest": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required email address for the password reset request.",
+            "format": "email",
+            "example": "jane.doe@edu.ph"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "required": [
+          "password",
+          "schoolId"
+        ],
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required school ID used as the account identifier.",
+            "example": "10001"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required account password.",
+            "example": "Giangwapo123?"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "12345"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "jane.doe@edu.ph"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "role": {
+            "enum": [
+              "Admin",
+              "DepartmentHead",
+              "Educator",
+              "Student"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RefreshTokenRequest": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required refresh token value.",
+            "example": "sample-refresh-token-xyz123"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisterRequest": {
+        "required": [
+          "confirmPassword",
+          "departmentName",
+          "email",
+          "firstName",
+          "lastName",
+          "password",
+          "role",
+          "schoolId"
+        ],
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required first name for the account request.",
+            "example": "Jane"
+          },
+          "lastName": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required last name for the account request.",
+            "example": "Doe"
+          },
+          "email": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required valid email address. Must be unique.",
+            "format": "email",
+            "example": "jane.doe@edu.ph"
+          },
+          "schoolId": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required institutional School ID. Students use 10 digits; faculty and department heads use 5 digits.",
+            "example": "10001"
+          },
+          "role": {
+            "enum": [
+              "Admin",
+              "DepartmentHead",
+              "Educator",
+              "Student"
+            ],
+            "type": "string",
+            "description": "Required requested role. Allowed self-registration roles are DepartmentHead, Educator, and Student."
+          },
+          "departmentName": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required engineering department name.",
+            "example": "Computer Engineering"
+          },
+          "password": {
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
+            "type": "string",
+            "description": "Required password, at least 8 characters with an uppercase letter, number, and special character.",
+            "example": "Giangwapo123?"
+          },
+          "confirmPassword": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required confirmation value. Must match password.",
+            "example": "Giangwapo123?"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegistrationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "12345"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "jane.doe@edu.ph"
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane"
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Doe"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "schoolId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering"
+          },
+          "requestedRole": {
+            "enum": [
+              "Admin",
+              "DepartmentHead",
+              "Educator",
+              "Student"
+            ],
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": [
+              "PendingApproval",
+              "Active",
+              "Suspended",
+              "Rejected",
+              "Deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RejectRegistrationRequest": {
+        "type": "object",
+        "properties": {
+          "reviewRemarks": {
+            "type": "string",
+            "nullable": true,
+            "example": "Approved for academic curriculum distribution."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResetPasswordRequest": {
+        "required": [
+          "confirmPassword",
+          "email",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required email address for the account whose password will be changed.",
+            "format": "email",
+            "example": "jane.doe@edu.ph"
+          },
+          "newPassword": {
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
+            "type": "string",
+            "description": "Required new password, at least 8 characters with an uppercase letter, number, and special character.",
+            "example": "Giangwapo123?"
+          },
+          "confirmPassword": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required confirmation value. Must match newPassword.",
+            "example": "Giangwapo123?"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReviewSyllabusRequest": {
+        "type": "object",
+        "properties": {
+          "remarks": {
+            "type": "string",
+            "description": "Reviewer remarks. Optional for approval; required for rejection.",
+            "nullable": true,
+            "example": "Approved for academic curriculum distribution."
+          }
+        },
+        "additionalProperties": false
+      },
+      "StudentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "12345"
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane"
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Doe"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Jane Doe"
+          },
+          "schoolId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "jane.doe@edu.ph"
+          },
+          "assignedSyllabusId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "12345"
+          },
+          "assignedDocumentId": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
+          "assignedSyllabusTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyllabusDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "documentId": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "example": "12345"
+          },
+          "courseCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE 101"
+          },
+          "courseTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "academicYear": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-2026"
+          },
+          "semester": {
+            "type": "string",
+            "nullable": true,
+            "example": "First Semester"
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering"
+          },
+          "instructorId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "currentVersionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "enum": [
+              "Draft",
+              "Submitted",
+              "Approved",
+              "Rejected"
+            ],
+            "type": "string"
+          },
+          "currentFileName": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE101_Syllabus.pdf"
+          },
+          "reviewerRemarks": {
+            "type": "string",
+            "nullable": true,
+            "example": "Approved for academic curriculum distribution."
+          },
+          "submittedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyllabusListResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "documentId": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "example": "12345"
+          },
+          "subjectCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE 101"
+          },
+          "subjectTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "facultyName": {
+            "type": "string",
+            "nullable": true
+          },
+          "academicYear": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-2026"
+          },
+          "semester": {
+            "type": "string",
+            "nullable": true,
+            "example": "First Semester"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": [
+              "Draft",
+              "Submitted",
+              "Approved",
+              "Rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyllabusSearchItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "courseCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE 101"
+          },
+          "courseTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Computer Engineering"
+          },
+          "academicYear": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-2026"
+          },
+          "semester": {
+            "type": "string",
+            "nullable": true,
+            "example": "First Semester"
+          },
+          "instructorId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10001"
+          },
+          "currentVersionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "enum": [
+              "Draft",
+              "Submitted",
+              "Approved",
+              "Rejected"
+            ],
+            "type": "string"
+          },
+          "canDownload": {
+            "type": "boolean"
+          },
+          "visibilityLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "latestChangeSummary": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyllabusSearchResults": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyllabusSearchItem"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyllabusVersionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "12345"
+          },
+          "documentId": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "example": "12345"
+          },
+          "versionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true,
+            "example": "CPE101_Syllabus.pdf"
+          },
+          "uploadedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "uploadedByName": {
+            "type": "string",
+            "nullable": true
+          },
+          "changeSummary": {
+            "type": "string",
+            "nullable": true,
+            "example": "Initial syllabus draft creation."
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateSyllabusRequest": {
+        "type": "object",
+        "properties": {
+          "courseCode": {
+            "type": "string",
+            "description": "Optional new course or subject code. Blank values are ignored.",
+            "nullable": true,
+            "example": "CPE 101"
+          },
+          "courseTitle": {
+            "type": "string",
+            "description": "Optional new course or subject title. Blank values are ignored.",
+            "nullable": true,
+            "example": "Computer Engineering Systems"
+          },
+          "academicYear": {
+            "type": "string",
+            "description": "Optional new academic year. Blank values are ignored.",
+            "nullable": true,
+            "example": "2025-2026"
+          },
+          "semester": {
+            "type": "string",
+            "description": "Optional new semester. Blank values are ignored.",
+            "nullable": true,
+            "example": "First Semester"
+          },
+          "instructorId": {
+            "type": "string",
+            "description": "Optional new instructor School ID. Blank values are ignored.",
+            "nullable": true,
+            "example": "10001"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "Optional new current file name. Blank values are ignored.",
+            "nullable": true,
+            "example": "CPE101_Syllabus.pdf"
+          },
+          "changeSummary": {
+            "type": "string",
+            "description": "Optional latest change summary. Blank values are ignored.",
+            "nullable": true,
+            "example": "Initial syllabus draft creation."
+          }
+        },
+        "additionalProperties": false
+      },
+      "UploadSyllabusFormRequest": {
+        "required": [
+          "courseCode",
+          "courseTitle",
+          "file"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Required syllabus document file uploaded as multipart/form-data. Empty files are rejected.",
+            "format": "binary"
+          },
+          "courseCode": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required course or subject code for the uploaded syllabus.",
+            "example": "CPE 101"
+          },
+          "courseTitle": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Required course or subject title for the uploaded syllabus.",
+            "example": "Computer Engineering Systems"
+          },
+          "academicYear": {
+            "type": "string",
+            "description": "Optional academic year. Defaults to 2025-2026 when omitted or blank.",
+            "nullable": true,
+            "example": "2025-2026"
+          },
+          "semester": {
+            "type": "string",
+            "description": "Optional semester. Defaults to First Semester when omitted or blank.",
+            "nullable": true,
+            "example": "First Semester"
+          },
+          "instructorId": {
+            "type": "string",
+            "description": "Optional instructor School ID. Defaults to the authenticated user when omitted or blank.",
+            "nullable": true,
+            "example": "10001"
+          },
+          "changeSummary": {
+            "type": "string",
+            "description": "Optional upload change summary. A default summary is used when omitted or blank.",
+            "nullable": true,
+            "example": "Initial syllabus draft creation."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "CookieAuth": {
+        "type": "apiKey",
+        "description": "ASP.NET Core Identity Cookie Authentication. Log in via the web interface or '/api/auth/login' to authenticate your browser session.",
+        "name": ".AspNetCore.Identity.Application",
+        "in": "cookie"
+      }
+    }
+  },
+  "security": [
+    {
+      "CookieAuth": [ ]
+    }
+  ]
+}
